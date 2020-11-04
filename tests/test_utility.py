@@ -13,9 +13,6 @@ class Test(TestCase):
         true_datasets_folder = utility.get_project_dir() / "datasets"
         self.assertEqual(true_datasets_folder,utility.get_datasets_dir())
 
-    def test_get_dataset_dir(self):
-        self.fail("Not implemented")
-
     def test_get_models_dir(self):
         true_models_folder = utility.get_project_dir() / "models"
         self.assertEqual(true_models_folder,utility.get_models_dir())

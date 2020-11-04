@@ -1,5 +1,5 @@
 from unittest import TestCase
-from basemodel import BaseModel
+from base import BaseModel
 
 class TestBaseModel(TestCase):
     class TestBaseModel(BaseModel):
