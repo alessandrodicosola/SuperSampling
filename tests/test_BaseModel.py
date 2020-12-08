@@ -1,8 +1,18 @@
+from pathlib import Path
+from typing import List, Mapping,Tuple,Union
 from unittest import TestCase
 from base import BaseModel
 import torch
+
+from base.hints import BatchTensor
+
+
 class TestBaseModel(TestCase):
     class TestBaseModel(BaseModel):
+
+        def test_step(self, batch: BatchTensor, batch_index: int):
+            pass
+
         def __init__(self, hidden_units):
             super().__init__()
             self.linear = torch.nn.Linear(in_features=hidden_units,out_features=hidden_units)
@@ -19,6 +29,11 @@ class TestBaseModel(TestCase):
             x = self.linear(input)
             x = self.relu(x)
             return x
+        def get_optimizers(self) -> Union[
+        torch.optim.Optimizer, List[torch.optim.Optimizer], Mapping[str, torch.optim.Optimizer], Tuple[
+            torch.optim.Optimizer, ...]]:
+            return None
+
 
     def test_name(self):
         true_name = "TestBaseModel"
