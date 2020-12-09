@@ -21,7 +21,7 @@ class LaplacianFrequencyRepresentation:
         step = (end - start) / (count - 1)
         scales = [start + l * step for l in range(count)]
 
-        self.information = [Level(index, scale, size) for index, (scale, size) in enumerate(zip(scales, sizes))]
+        self.information = [Level(index, scale) for index, scale in enumerate(scales)]
 
     def get_index(self, scale : float):
         """ Return the corresponding pyramid index for the given decimal scale
@@ -42,6 +42,11 @@ class LaplacianFrequencyRepresentation:
         return (self.count - 1) * (self.information[self.get_index(scale)].scale - scale)
 
     def get_for(self, scale : float):
+        """Returns the i-th and (i-1)-th level of the pyramid given the decimal scale
+
+        Args:
+            scale: decimal scale
+        """
         index = self.get_index(scale)
         return self.information[index - 1], self.information[index]
 
