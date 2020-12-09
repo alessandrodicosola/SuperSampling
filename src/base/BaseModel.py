@@ -23,6 +23,7 @@ class BaseModel(nn.Module, ABC):
         # e.g. ./models/BaseModels
         self.model_dir: Path = utility.get_models_dir() / self.name
 
+        self.logs_dir: Path = self.model_dir / "logs"
 
     @abstractmethod
     def forward(self, *args, **kwargs) -> torch.Tensor:
