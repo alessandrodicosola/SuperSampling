@@ -29,7 +29,12 @@ def collate_fn(batch, lfr : LaplacianFrequencyRepresentation):
         interpolating_fn: torch.nn.functional.interpolate
 
     Returns:
-
+        Tuple:
+        (
+            (scale),
+            (low_res_batch_i_minus_1, pyramid_i_minus_1),
+            (low_res_batch_i, pyramid_i)
+        )
     """
 
     # sample a random value between 1 and 2 using an uniform distribution
@@ -61,7 +66,7 @@ def collate_fn(batch, lfr : LaplacianFrequencyRepresentation):
     pyramid_i = torch.stack(pyramid_i)
     pyramid_i_minus_1 = torch.stack(pyramid_i_minus_1)
 
-    return (low_res_batch_i_minus_1, pyramid_i_minus_1), (low_res_batch_i, pyramid_i)
+    return (scale), (low_res_batch_i_minus_1, pyramid_i_minus_1), (low_res_batch_i, pyramid_i)
 
 
 def compute_mean_std(path: str) -> Mapping[str, List[float]]:

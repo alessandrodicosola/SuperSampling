@@ -21,8 +21,10 @@ class TestASDNDataset(TestCase):
         result = COLLATE_FN([batch])
 
         assert isinstance(result, Tuple), f"expected: Tuple. returned: {type(result)}"
-        assert len(result) == 2, f"expected: 2, returned: {len(result)}"
-        assert len(result[0]) == 2, f"expected: 2, returned: {len(result[2])}"
+        assert len(result) == 3, f"expected: 2, returned: {len(result)}"
+        assert len(result[0]) == 2, f"expected: 2, returned: {len(result[0])}"
+        assert len(result[1]) == 2, f"expected: 2, returned: {len(result[1])}"
+        assert len(result[2]) == 2, f"expected: 2, returned: {len(result[2])}"
 
     def test_dataset(self):
         from tqdm.auto import tqdm
@@ -48,7 +50,7 @@ class TestASDNDataset(TestCase):
 
         denormalize = NormalizeInverse(dataset.mean, dataset.std)
 
-        for index, ((low_res_batch_i_minus_1, pyramid_i_minus_1), (low_res_batch_i, pyramid_i)) in enumerate(
+        for index, ((scale), (low_res_batch_i_minus_1, pyramid_i_minus_1), (low_res_batch_i, pyramid_i)) in enumerate(
                 tqdm(dataloader)):
             if index == 0:
                 low_res_batch_i_minus_1 = denormalize(low_res_batch_i_minus_1)

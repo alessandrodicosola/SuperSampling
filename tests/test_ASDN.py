@@ -17,7 +17,7 @@ class TestASDN(TestCase):
         gpu = "cuda:0"
 
         scale = 1.3674
-        lfr = LaplacianFrequencyRepresentation(1, 2, 11, 48)
+        lfr = LaplacianFrequencyRepresentation(1, 2, 11)
         leveliminus1, leveli = lfr.get_for(scale=scale)
 
         class RandomTensorDataset:
@@ -41,13 +41,10 @@ class TestASDN(TestCase):
 
         asdn.train()
 
-        for index, batch in enumerate(loader):
+        for index, (scale), (low_res_batch_i_minus_1, pyramid_i_minus_1), (low_res_batch_i, pyramid_i) in enumerate(loader):
             start.record()
-            interpolatedi = nn.functional.interpolate(batch, scale_factor=leveli.scale, mode="bicubic").to(gpu)
-            outputi = asdn(interpolatedi, irb_index=leveli.index).to(cpu)
-
-            interpolatedi = nn.functional.interpolate(batch, scale_factor=leveliminus1.scale, mode="bicubic").to(gpu)
-            outputiminus1 = asdn(interpolatedi, irb_index=leveliminus1.index).to(cpu)
+            outputi = asdn(low_res_batch_i, irb_index=leveli.index).to(cpu)
+            outputiminus1 = asdn(low_res_batch_i_minus_1, irb_index=leveliminus1.index).to(cpu)
             end.record()
 
             print("=" * 3, index, "=" * 3)
