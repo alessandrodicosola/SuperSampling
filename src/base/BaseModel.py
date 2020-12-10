@@ -37,3 +37,19 @@ class BaseModel(nn.Module, ABC):
         gradients.
         """
         raise NotImplementedError("forward")
+
+    @abstractmethod
+    def train_step(self, *args, **kwargs):
+        raise NotImplementedError
+
+    @abstractmethod
+    @torch.no_grad()
+    def val_step(self, *args, **kwargs):
+        raise NotImplementedError
+
+    @abstractmethod
+    @torch.no_grad()
+    def test_step(self, *args, **kwargs):
+        raise NotImplementedError
+
+

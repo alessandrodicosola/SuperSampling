@@ -22,7 +22,7 @@ class TestASDNDataset(TestCase):
 
         assert isinstance(result, Tuple), f"expected: Tuple. returned: {type(result)}"
         assert len(result) == 3, f"expected: 2, returned: {len(result)}"
-        assert len(result[0]) == 2, f"expected: 2, returned: {len(result[0])}"
+        assert isinstance(result[0], float), f"expected: float, returned: {type(result[0])}"
         assert len(result[1]) == 2, f"expected: 2, returned: {len(result[1])}"
         assert len(result[2]) == 2, f"expected: 2, returned: {len(result[2])}"
 

@@ -52,15 +52,3 @@ class TestBaseModel(TestCase):
         with torch.no_grad():
             out = model(torch.rand(5))
         self.assertFalse(out.requires_grad)
-
-    def test_model_in_training(self):
-        import torch
-        model = self.TestBaseModel(5)
-        model.train_step(None,0)
-        self.assertTrue(model.training)
-
-    def test_model_not_in_training(self):
-        import torch
-        model = self.TestBaseModel(5)
-        model.val_step(None,0)
-        self.assertFalse(model.training)

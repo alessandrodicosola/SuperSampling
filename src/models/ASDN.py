@@ -1,3 +1,5 @@
+import math
+
 from base import BaseModel
 
 import torch
@@ -5,6 +7,7 @@ import torch.nn
 import torch.utils.checkpoint
 
 from base.hints import Tensor
+from datasets.ASDNDataset import interpolating_fn
 
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 
@@ -125,7 +128,8 @@ class IntraDenseBlock(torch.nn.Module):
 
         if compressed_input.requires_grad:
             dense_output = torch.utils.checkpoint.checkpoint_sequential(self.intra_layers,
-                                                                        _SEGMENTS_GRADIENT_CHECKPOINT, compressed_input)
+                                                                        max(_SEGMENTS_GRADIENT_CHECKPOINT,self.n_intra_layers//4),
+                                                                        compressed_input)
         else:
             dense_output = self.intra_layers(compressed_input)
 
@@ -241,7 +245,8 @@ class FeatureMappingBranch(torch.nn.Module):
     def forward(self, input):
         low_level_features = self.low_level_features(input)
         if input.requires_grad:
-            dense_output = torch.utils.checkpoint.checkpoint_sequential(self.dabs, _SEGMENTS_GRADIENT_CHECKPOINT,
+            dense_output = torch.utils.checkpoint.checkpoint_sequential(self.dabs,
+                                                                        max(_SEGMENTS_GRADIENT_CHECKPOINT,self.n_dab),
                                                                         low_level_features)
         else:
             dense_output = self.dabs(low_level_features)
@@ -353,3 +358,32 @@ class ASDN(BaseModel):
         # one line return for avoid unnecessary allocation ?!?
         return self.image_reconstruction_branches[irb_index](interpolated_patch,
                                                              self.feature_mapping_branch(interpolated_patch))
+
+    # ((scale), (low_res_batch_i_minus_1, pyramid_i_minus_1), (low_res_batch_i, pyramid_i))
+    def train_step(self, scale, low_res_batch_i_minus_1, low_res_batch_i) -> Tensor:
+        level_i_minus_1,level_i = self.lfr.get_for(scale)
+
+        # get the last size: width
+        OUT_SIZE = low_res_batch_i.size(-1)
+
+        out_level_i = self(low_res_batch_i, level_i.index)
+
+        out_level_i_minus_1 = self(low_res_batch_i_minus_1,level_i_minus_1.index)
+        out_level_i_minus_1 = interpolating_fn(out_level_i_minus_1, size=(OUT_SIZE, OUT_SIZE))
+
+        phase = out_level_i_minus_1 - out_level_i
+
+        reconstructed_image = out_level_i + self.lfr.get_weight(scale) * phase
+
+        return reconstructed_image
+
+    @torch.no_grad()
+    def val_step(self, scale, low_res_batch_i_minus_1, low_res_batch_i):
+        return self.train_step(scale, low_res_batch_i_minus_1, low_res_batch_i)
+
+    @torch.no_grad()
+    def test_step(self,scale, low_res_batch_i_minus_1, low_res_batch_i):
+        pass
+
+
+

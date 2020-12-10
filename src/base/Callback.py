@@ -15,14 +15,6 @@ class Callback(ABC):
         raise NotImplementedError("start_epoch")
 
     @abstractmethod
-    def start_batch(self, *args, **kwargs):
-        raise NotImplementedError("start_batch")
-
-    @abstractmethod
-    def end_batch(self, *args, **kwargs):
-        raise NotImplementedError("end_batch")
-
-    @abstractmethod
     def end_epoch(self, *args, **kwargs):
         raise NotImplementedError("end_epoch")
 
@@ -35,14 +27,6 @@ class ListCallback(Callback):
     def start_epoch(self, *args, **kwargs):
         for callback in self.callbacks:
             callback.start_epoch(*args,**kwargs)
-
-    def start_batch(self, *args, **kwargs):
-        for callback in self.callbacks:
-            callback.start_batch(*args,**kwargs)
-
-    def end_batch(self, *args, **kwargs):
-        for callback in self.callbacks:
-            callback.end_batch(*args,**kwargs)
 
     def end_epoch(self, *args, **kwargs):
         for callback in self.callbacks:
