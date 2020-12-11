@@ -128,7 +128,8 @@ class IntraDenseBlock(torch.nn.Module):
 
         if compressed_input.requires_grad:
             dense_output = torch.utils.checkpoint.checkpoint_sequential(self.intra_layers,
-                                                                        max(_SEGMENTS_GRADIENT_CHECKPOINT,self.n_intra_layers//4),
+                                                                        max(_SEGMENTS_GRADIENT_CHECKPOINT,
+                                                                            self.n_intra_layers // 4),
                                                                         compressed_input)
         else:
             dense_output = self.intra_layers(compressed_input)
@@ -246,7 +247,7 @@ class FeatureMappingBranch(torch.nn.Module):
         low_level_features = self.low_level_features(input)
         if input.requires_grad:
             dense_output = torch.utils.checkpoint.checkpoint_sequential(self.dabs,
-                                                                        max(_SEGMENTS_GRADIENT_CHECKPOINT,self.n_dab),
+                                                                        max(_SEGMENTS_GRADIENT_CHECKPOINT, self.n_dab),
                                                                         low_level_features)
         else:
             dense_output = self.dabs(low_level_features)
@@ -360,15 +361,15 @@ class ASDN(BaseModel):
                                                              self.feature_mapping_branch(interpolated_patch))
 
     # ((scale), (low_res_batch_i_minus_1, pyramid_i_minus_1), (low_res_batch_i, pyramid_i))
-    def train_step(self, scale, low_res_batch_i_minus_1, low_res_batch_i) -> Tensor:
-        level_i_minus_1,level_i = self.lfr.get_for(scale)
+    def train_step(self, scale, low_res_batch_i_minus_1, low_res_batch_i):
+        level_i_minus_1, level_i = self.lfr.get_for(scale)
 
         # get the last size: width
         OUT_SIZE = low_res_batch_i.size(-1)
 
         out_level_i = self(low_res_batch_i, level_i.index)
 
-        out_level_i_minus_1 = self(low_res_batch_i_minus_1,level_i_minus_1.index)
+        out_level_i_minus_1 = self(low_res_batch_i_minus_1, level_i_minus_1.index)
         out_level_i_minus_1 = interpolating_fn(out_level_i_minus_1, size=(OUT_SIZE, OUT_SIZE))
 
         phase = out_level_i_minus_1 - out_level_i
@@ -382,8 +383,5 @@ class ASDN(BaseModel):
         return self.train_step(scale, low_res_batch_i_minus_1, low_res_batch_i)
 
     @torch.no_grad()
-    def test_step(self,scale, low_res_batch_i_minus_1, low_res_batch_i):
+    def test_step(self, scale, low_res_batch_i_minus_1, low_res_batch_i):
         pass
-
-
-
