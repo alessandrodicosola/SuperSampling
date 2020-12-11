@@ -3,12 +3,14 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from .hints import BatchTensor, Union, NoReturn, OptimizerType
+from .hints import Union, NoReturn, OptimizerType
 
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 import utility
+
+# TODO: Documentation
 
 class BaseModel(nn.Module, ABC):
     """
@@ -26,7 +28,7 @@ class BaseModel(nn.Module, ABC):
         self.logs_dir: Path = self.model_dir / "logs"
 
     @abstractmethod
-    def forward(self, *args, **kwargs) -> torch.Tensor:
+    def forward(self, *args, **kwargs):
         """
         Base method for inference
         :param args: Any kind of input
@@ -42,14 +44,12 @@ class BaseModel(nn.Module, ABC):
     def train_step(self, *args, **kwargs):
         raise NotImplementedError
 
-    @abstractmethod
     @torch.no_grad()
+    @abstractmethod
     def val_step(self, *args, **kwargs):
         raise NotImplementedError
 
-    @abstractmethod
     @torch.no_grad()
+    @abstractmethod
     def test_step(self, *args, **kwargs):
         raise NotImplementedError
-
-

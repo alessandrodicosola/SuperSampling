@@ -1,54 +1,119 @@
+import unittest
 from pathlib import Path
-from typing import List, Mapping,Tuple,Union
+from base.hints import List, Mapping, Tuple, Union
 from unittest import TestCase
 from base import BaseModel
 import torch
 
-from base.hints import BatchTensor
+
+class BaseModelOneInput(BaseModel):
+    def forward(self, input):
+        # do some computation otherwise requires_grad is not set
+        input = input + 0.0
+        return input
+
+    def train_step(self, input):
+        return self(input)
+
+    @torch.no_grad()
+    def val_step(self, input):
+        return self(input)
+
+    @torch.no_grad()
+    def test_step(self, input):
+        return self(input)
+
+
+class BaseModelTwoInput(BaseModel):
+    def forward(self, input1, input2):
+        # do some computation otherwise requires_grad is not set
+        input1 = input1 + 0.0
+        input2 = input2 + 0.0
+
+        return input1 + input2
+
+    def train_step(self, input1, input2):
+        return self(input1, input2)
+
+    @torch.no_grad()
+    def val_step(self, input1, input2):
+        return self(input1, input2)
+
+    @torch.no_grad()
+    def test_step(self, input1, input2):
+        return self(input1, input2)
+
+
+class BaseModelTwoOutput(BaseModel):
+    def forward(self, input):
+        # do some computation otherwise requires_grad is not set
+        input = input + 0.0
+        return (input, input)
+
+    def train_step(self, input):
+        return self(input)
+
+    @torch.no_grad()
+    def val_step(self, input):
+        return self(input)
+
+    @torch.no_grad()
+    def test_step(self, input):
+        return self(input)
 
 
 class TestBaseModel(TestCase):
-    class TestBaseModel(BaseModel):
 
-        def test_step(self, batch: BatchTensor, batch_index: int):
-            pass
+    def test_one_input_grad(self):
+        input = torch.rand(5, requires_grad=True)
+        model = BaseModelOneInput()
 
-        def __init__(self, hidden_units):
-            super().__init__()
-            self.linear = torch.nn.Linear(in_features=hidden_units,out_features=hidden_units)
-            self.relu = torch.nn.ReLU()
+        model.train()
+        self.assertTrue(model(input).requires_grad)
+        self.assertTrue(model.train_step(input).requires_grad)
 
-        def train_step(self, batch, batch_index):
-            super().train_step(batch,batch_index)
+        model.eval()
+        self.assertFalse(model.val_step(input).requires_grad)
+        self.assertFalse(model.test_step(input).requires_grad)
+
+    def test_two_input_grad(self):
+        input = torch.rand(5, requires_grad=True)
+        model = BaseModelTwoInput()
+
+        model.train()
+        self.assertTrue(model(input, input).requires_grad)
+        self.assertTrue(model.train_step(input, input).requires_grad)
+
+        model.eval()
+        self.assertFalse(model.val_step(input, input).requires_grad)
+        self.assertFalse(model.test_step(input, input).requires_grad)
+
+    def test_two_output_grad(self):
+        input = torch.rand(5, requires_grad=True)
+        model = BaseModelTwoOutput()
+
+        model.train()
+        out = model(input)
+        self.assertIsInstance(out, Tuple)
+        for elem in out:
+            self.assertTrue(elem.requires_grad)
+
+        out = model.train_step(input)
+        self.assertIsInstance(out, Tuple)
+        for elem in out:
+            self.assertTrue(elem.requires_grad)
+
+        model.eval()
+        out = model.val_step(input)
+        self.assertIsInstance(out, Tuple)
+        for elem in out:
+            self.assertFalse(elem.requires_grad)
+
+        out = model.test_step(input)
+        self.assertIsInstance(out, Tuple)
+        for elem in out:
+            self.assertFalse(elem.requires_grad)
 
 
-        def val_step(self, batch, batch_index):
-            super().val_step(batch,batch_index)
-
-        def forward(self, input):
-            x = self.linear(input)
-            x = self.relu(x)
-            return x
-        def get_optimizers(self) -> Union[
-        torch.optim.Optimizer, List[torch.optim.Optimizer], Mapping[str, torch.optim.Optimizer], Tuple[
-            torch.optim.Optimizer, ...]]:
-            return None
-
-
-    def test_name(self):
-        true_name = "TestBaseModel"
-        model = self.TestBaseModel(5)
-        self.assertEqual(true_name,model.name)
-
-    def test_forward_gradient_used(self):
-        import torch
-        model = self.TestBaseModel(5)
-        out = model(torch.rand(5))
-        self.assertTrue(out.requires_grad)
-
-    def test_forward_no_gradient_used(self):
-        import torch
-        model = self.TestBaseModel(5)
-        with torch.no_grad():
-            out = model(torch.rand(5))
-        self.assertFalse(out.requires_grad)
+if __name__ == "__main__":
+    unittest.main()
