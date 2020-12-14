@@ -1,4 +1,5 @@
-from .hints import List,ABC,abstractmethod
+from .hints import List
+from abc import ABC, abstractmethod
 
 
 class Callback(ABC):
@@ -10,6 +11,7 @@ class Callback(ABC):
      - END EPOCH
     for both training and tuning (validation)
     """
+
     @abstractmethod
     def start_epoch(self, *args, **kwargs):
         raise NotImplementedError("start_epoch")
@@ -26,9 +28,8 @@ class ListCallback(Callback):
 
     def start_epoch(self, *args, **kwargs):
         for callback in self.callbacks:
-            callback.start_epoch(*args,**kwargs)
+            callback.start_epoch(*args, **kwargs)
 
     def end_epoch(self, *args, **kwargs):
         for callback in self.callbacks:
-            callback.end_epoch(*args,**kwargs)
-
+            callback.end_epoch(*args, **kwargs)

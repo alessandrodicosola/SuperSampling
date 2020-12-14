@@ -6,7 +6,7 @@ import torch
 import torch.nn
 import torch.utils.checkpoint
 
-from base.hints import Tensor
+
 from datasets.ASDNDataset import interpolating_fn
 
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
@@ -58,7 +58,7 @@ class DenseLayer(torch.nn.Module):
         super(DenseLayer, self).__init__()
         self.base = base
 
-    def forward(self, input: Tensor):
+    def forward(self, input: torch.Tensor):
         def concat_(input):
             return torch.cat([input, self.base(input)], dim=1)
 
@@ -123,7 +123,7 @@ class IntraDenseBlock(torch.nn.Module):
 
         self.intra_layers = torch.nn.Sequential(*list_intra_layers)
 
-    def forward(self, input: Tensor) -> Tensor:
+    def forward(self, input: torch.Tensor):
         compressed_input = self.input_compression_layer(input)
 
         if compressed_input.requires_grad:
@@ -170,7 +170,7 @@ class ChannelAttention(torch.nn.Module):
             torch.nn.Sigmoid()
         )
 
-    def forward(self, input: Tensor) -> Tensor:
+    def forward(self, input: torch.Tensor):
         attention_mask = self.attention(input)
         return input * attention_mask
 
@@ -352,7 +352,7 @@ class ASDN(BaseModel):
         self.image_reconstruction_branches = torch.nn.ModuleList(
             [ImageReconstructionBranch(self.in_channels_irb, input_image_channels, 2) for _ in range(lfr.count)])
 
-    def forward(self, interpolated_patch, irb_index: int) -> Tensor:
+    def forward(self, interpolated_patch, irb_index: int):
         # features_extracted = self.feature_mapping_branch(interpolated_patch)
         # output_leveli = self.image_reconstruction_branches[irb_index](interpolated_patch, features_extracted)
 

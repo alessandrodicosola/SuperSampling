@@ -1,3 +1,4 @@
+import operator
 import unittest
 from functools import partial
 from unittest import TestCase
@@ -7,7 +8,8 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
 
 from base import BaseModel
-from base.Trainer import Trainer
+from base.Trainer import Trainer, _execute_operation
+
 from datasets.ASDNDataset import ASDNDataset, collate_fn
 from models.ASDN import ASDN
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
@@ -75,7 +77,7 @@ class NetworkTwoInputs(BaseModel):
         return self(input1, input2)
 
 
-class TestTrainer(TestCase):
+class TestForward(TestCase):
 
     @unittest.skip("EXPENSIVE")
     def test_fit_with_ASDN(self):
@@ -121,6 +123,100 @@ class TestTrainer(TestCase):
         adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
         trainer = Trainer("test", model, adam, loss, device=device)
         trainer.fit(dataloader, dataloader, 5)
+
+
+class TestMetric(unittest.TestCase):
+    def test_single_metric(self):
+        def metric1(t1: torch.Tensor, t2: torch.Tensor):
+            return ((t1 - t2) ** 2).sum().item()
+
+        device = torch.device('cpu')
+        input_size = (3, 24, 24)
+        dataset = RandomDataset(1, input_size, input_size)
+        dataloader = DataLoader(dataset, batch_size=32)
+        loss = MSELoss().to(device)
+        model = NetworkOneInput(input_size, 32).to(device)
+        adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
+        trainer = Trainer("test", model, adam, loss, metric=metric1, device=device)
+        trainer.fit(dataloader, dataloader, 5)
+
+    def test_list_metric(self):
+        def metric1(t1: torch.Tensor, t2: torch.Tensor):
+            return ((t1 - t2) ** 2).sum().item()
+
+        def metric2(t1: torch.Tensor, t2: torch.Tensor):
+            return ((t1 - t2) ** 2).sum().item()
+
+        device = torch.device('cpu')
+        input_size = (3, 24, 24)
+        dataset = RandomDataset(1, input_size, input_size)
+        dataloader = DataLoader(dataset, batch_size=32)
+        loss = MSELoss().to(device)
+        model = NetworkOneInput(input_size, 32).to(device)
+        adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
+        trainer = Trainer("test", model, adam, loss, metric=[metric1, metric2], device=device)
+        trainer.fit(dataloader, dataloader, 5)
+
+    def test_dict_metric(self):
+        def metric1(t1: torch.Tensor, t2: torch.Tensor):
+            return ((t1 - t2) ** 2).sum().item()
+
+        def metric2(t1: torch.Tensor, t2: torch.Tensor):
+            return ((t1 - t2) ** 2).sum().item()
+
+        metric_dict = {"my awesome metric1": metric1, "the less interesting metric2": metric2}
+        device = torch.device('cpu')
+        input_size = (3, 24, 24)
+        dataset = RandomDataset(1, input_size, input_size)
+        dataloader = DataLoader(dataset, batch_size=32)
+        loss = MSELoss().to(device)
+        model = NetworkOneInput(input_size, 32).to(device)
+        adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
+        trainer = Trainer("test", model, adam, loss, metric=metric_dict, device=device)
+        trainer.fit(dataloader, dataloader, 5)
+
+
+class Test__execute_operation(TestCase):
+    def test__execute_operation_int(self):
+        self.assertTrue(_execute_operation(operator.add, 1, 2), 3)
+        self.assertAlmostEqual(_execute_operation(operator.__truediv__, 1, 2), 0.5)
+
+    def test__execute_operation_float(self):
+        self.assertTrue(_execute_operation(operator.add, 1.0, 2.0), 3.0)
+        self.assertAlmostEqual(_execute_operation(operator.__truediv__, 1.0, 2.0), 0.5)
+
+    def test__execute_operation_float_int(self):
+        self.assertTrue(_execute_operation(operator.add, 1.0, 2), 3)
+        self.assertAlmostEqual(_execute_operation(operator.__truediv__, 1.0, 2), 0.5)
+
+    def test__execute_operation_list(self):
+        self.assertTrue(_execute_operation(operator.add, [1, 2, 3], [1, 2, 3]), [2, 4, 6])
+
+        true = [1, 1, 1]
+        out = _execute_operation(operator.__truediv__, [1, 2, 3], [1, 2, 3])
+        for elem, t in zip(out, true):
+            self.assertAlmostEqual(elem, t)
+
+        true = [1, 2, 3]
+        out = _execute_operation(operator.__truediv__, [1, 2, 3], 1)
+        for elem, t in zip(out, true):
+            self.assertAlmostEqual(elem, t)
+
+        true = [1.0, 2.0, 3.0]
+        out = _execute_operation(operator.__truediv__, [1, 2, 3], 1.0)
+        for elem, t in zip(out, true):
+            self.assertAlmostEqual(elem, t)
+
+        true = [i / 2 for i in range(1, 3 + 1)]
+        out = _execute_operation(operator.__truediv__, [1, 2, 3], 2)
+        for elem, t in zip(out, true):
+            self.assertAlmostEqual(elem, t)
+
+    def test__execute_operation_dict(self):
+        d1 = {"metric1": 0.04, "metric2": 0.6}
+        d2 = {"metric1": 0.04, "metric2": 1.2}
+        out = _execute_operation(operator.add, d1, d2)
+        self.assertTrue(out, {"metric1": 0.08, "metric2": 1.8})
 
 
 if __name__ == "__main__":

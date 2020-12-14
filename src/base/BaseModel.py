@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from .hints import Union, NoReturn, OptimizerType
+from .hints import Union, NoReturn, Optimizer_
 
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -24,8 +24,6 @@ class BaseModel(nn.Module, ABC):
         self.name: str = self.__class__.__name__
         # e.g. ./models/BaseModels
         self.model_dir: Path = utility.get_models_dir() / self.name
-
-        self.logs_dir: Path = self.model_dir / "logs"
 
     @abstractmethod
     def forward(self, *args, **kwargs):
