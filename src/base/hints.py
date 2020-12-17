@@ -20,7 +20,7 @@ Criterion = Union[torch.nn.Module, Callable[[torch.Tensor, torch.Tensor], Union[
 
 # TODO: Allow more tensors as input
 # (prediction,target) -> float
-Metric = Callable[[torch.Tensor, torch.Tensor], float]
+Metric = Union[torch.nn.Module, Callable[[torch.Tensor, torch.Tensor], float]]
 
 __all__ = ["List", "Tuple", "Mapping", "Union", "NoReturn"]
 
