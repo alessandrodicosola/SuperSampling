@@ -185,7 +185,7 @@ class Test_save_load_Trainer(TestCase):
         model = NetworkOneInput(input_size, 32).to(device)
         adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
         trainer = Trainer("test", model, adam, loss, metric=metric_dict, device=device)
-        self.assertRaises(RuntimeError, trainer.save_experiment, 1, 1e-5)
+        self.assertRaises(RuntimeError, trainer.save_experiment, 1, 1e-5, None)
 
     def test_save_experiment_not_raise(self):
         metric_dict = {"my awesome metric1": metric1, "the less interesting metric2": metric2}
@@ -199,7 +199,7 @@ class Test_save_load_Trainer(TestCase):
         trainer = Trainer("test", model, adam, loss, metric=metric_dict, device=device)
 
         try:
-            trainer.save_experiment(1, 1e-4)
+            trainer.save_experiment(1, 1e-4, None)
         except:
             self.fail("Error occurred")
 
@@ -207,6 +207,7 @@ class Test_save_load_Trainer(TestCase):
     def test_load_experiment(self):
         self.maxDiff = None
         torch.manual_seed(1)
+        torch.set_deterministic(True)
 
         metric_dict = {"my awesome metric1": metric1, "the less interesting metric2": metric2}
         device = torch.device('cpu')
@@ -220,19 +221,37 @@ class Test_save_load_Trainer(TestCase):
         trainer = Trainer("test", model, adam, loss, metric=metric_dict, lr_scheduler=lr_scheduler, device=device)
 
         try:
-            trainer.save_experiment(1,23e-5)
-            history = trainer.fit(dataloader,dataloader,10)
+            history = trainer.fit(dataloader, dataloader, 10)
+            trainer.save_experiment(1, 23e-5, history)
         except:
             self.fail("Error occurred")
 
         test_trainer = Trainer.load_experiment("NetworkOneInput", "test", 1)
 
-        for p1,p2 in zip(trainer.model.parameters(),test_trainer.model.parameters()):
-            if torch.eq(p1,p2).sum() > 0:
+        for p1, p2 in zip(trainer.model.parameters(), test_trainer.model.parameters()):
+            if torch.ne(p1, p2).sum() > 0:
                 self.fail("p1 and p2 are not equal")
 
+    def test_history(self):
+        epochs = 5
 
+        metric_dict = {"my awesome metric1": metric1, "the less interesting metric2": metric2}
+        device = torch.device('cpu')
+        input_size = (3, 24, 24)
+        dataset = RandomDataset(1, input_size, input_size)
+        dataloader = DataLoader(dataset, batch_size=32)
+        loss = MSELoss().to(device)
+        model = NetworkOneInput(input_size, 32).to(device)
+        adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(adam, 10)
+        trainer = Trainer("test", model, adam, loss, metric=metric_dict, lr_scheduler=lr_scheduler, device=device)
 
+        history = trainer.fit(dataloader, dataloader, epochs)
+        self.assertTrue(len(history.train) == epochs)
+        self.assertTrue(len(history.val) == epochs)
+
+        for state in history.train:
+            print(state, end="\n")
 
 
 if __name__ == "__main__":
