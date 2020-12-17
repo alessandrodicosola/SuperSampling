@@ -42,12 +42,13 @@ class BaseModel(nn.Module, ABC):
     def train_step(self, *args, **kwargs):
         raise NotImplementedError
 
-    @torch.no_grad()
+
     @abstractmethod
+    @torch.no_grad()
     def val_step(self, *args, **kwargs):
         raise NotImplementedError
 
-    @torch.no_grad()
     @abstractmethod
+    @torch.no_grad()
     def test_step(self, *args, **kwargs):
         raise NotImplementedError

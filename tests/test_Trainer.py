@@ -14,68 +14,7 @@ from base.hints import Criterion
 from datasets.ASDNDataset import ASDNDataset, collate_fn
 from models.ASDN import ASDN
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
-
-
-class RandomDataset(Dataset):
-    def __init__(self, n_input, input_size, target_size, size_dataset=8):
-        self.size_dataset = size_dataset
-        self.n_input = n_input
-        self.input_size = input_size
-        self.target_size = target_size
-
-    def __len__(self):
-        return self.size_dataset
-
-    def __getitem__(self, item):
-        # (X,y)
-        return tuple([torch.rand(self.input_size) for _ in range(self.n_input)]), torch.rand(self.target_size)
-
-
-class NetworkOneInput(BaseModel):
-
-    def train_step(self, input):
-        return self(input)
-
-    @torch.no_grad()
-    def val_step(self, input):
-        return self(input)
-
-    @torch.no_grad()
-    def test_step(self, input):
-        return self(input)
-
-    def __init__(self, input_size, low_features):
-        super(NetworkOneInput, self).__init__()
-        self.conv = torch.nn.Conv2d(in_channels=input_size[0], out_channels=low_features, kernel_size=3, padding=1)
-        self.out = torch.nn.Conv2d(in_channels=low_features, out_channels=input_size[0], kernel_size=3, padding=1)
-
-    def forward(self, input) -> torch.Tensor:
-        return self.out(self.conv(input))
-
-
-class NetworkTwoInputs(BaseModel):
-
-    def __init__(self, input_size, low_features):
-        super(NetworkTwoInputs, self).__init__()
-        self.conv = torch.nn.Conv2d(in_channels=input_size[0], out_channels=low_features, kernel_size=3, padding=1)
-        self.out = torch.nn.Conv2d(in_channels=low_features, out_channels=input_size[0], kernel_size=3, padding=1)
-
-    def forward(self, input1, input2) -> torch.Tensor:
-        out1 = self.conv(input1)
-        out2 = self.conv(input2)
-        out = out1 + out2
-        return self.out(out)
-
-    def train_step(self, input1, input2):
-        return self(input1, input2)
-
-    @torch.no_grad()
-    def val_step(self, input1, input2):
-        return self(input1, input2)
-
-    @torch.no_grad()
-    def test_step(self, input1, input2):
-        return self(input1, input2)
+from tests.util_for_testing import RandomDataset, NetworkOneInput, NetworkTwoInputs
 
 
 class TestForward(TestCase):
@@ -246,7 +185,7 @@ class Test_save_load_Trainer(TestCase):
         model = NetworkOneInput(input_size, 32).to(device)
         adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
         trainer = Trainer("test", model, adam, loss, metric=metric_dict, device=device)
-        self.assertRaises(AttributeError, trainer.save_experiment, 1)
+        self.assertRaises(RuntimeError, trainer.save_experiment, 1, 1e-5)
 
     def test_save_experiment_not_raise(self):
         metric_dict = {"my awesome metric1": metric1, "the less interesting metric2": metric2}
@@ -260,7 +199,7 @@ class Test_save_load_Trainer(TestCase):
         trainer = Trainer("test", model, adam, loss, metric=metric_dict, device=device)
 
         try:
-            trainer.save_experiment(1)
+            trainer.save_experiment(1, 1e-4)
         except:
             self.fail("Error occurred")
 
@@ -281,7 +220,7 @@ class Test_save_load_Trainer(TestCase):
         trainer = Trainer("test", model, adam, loss, metric=metric_dict, lr_scheduler=lr_scheduler, device=device)
 
         try:
-            trainer.save_experiment(1)
+            trainer.save_experiment(1,23e-5)
             history = trainer.fit(dataloader,dataloader,10)
         except:
             self.fail("Error occurred")

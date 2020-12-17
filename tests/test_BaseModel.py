@@ -114,6 +114,5 @@ class TestBaseModel(TestCase):
         for elem in out:
             self.assertFalse(elem.requires_grad)
 
-
 if __name__ == "__main__":
     unittest.main()

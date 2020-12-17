@@ -1,6 +1,5 @@
 import torch
 import torch.nn
-import math
 
 
 class PSNR(torch.nn.Module):
@@ -16,9 +15,9 @@ class PSNR(torch.nn.Module):
     def __init__(self, max_pixel_value=255):
         super(PSNR, self).__init__()
         self.max_pixel_value = max_pixel_value
-        self.numerator = 20 * math.log10(max_pixel_value)
         self.eps = 1e-8
 
+    @torch.no_grad()
     def forward(self, prediction: torch.Tensor, target: torch.Tensor):
         if prediction.size() != target.size():
             raise RuntimeError(
@@ -32,6 +31,5 @@ class PSNR(torch.nn.Module):
         if mse == 0:
             return 100
 
-        psnr = 10 * torch.log10(1 / mse + self.eps)
-        psnr = psnr.item()
-        return psnr
+        psnr = 10 * torch.log10(1 / (mse + self.eps))
+        return psnr.item()
