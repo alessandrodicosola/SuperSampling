@@ -1,6 +1,6 @@
 import unittest
 from pathlib import Path
-from base.hints import List, Mapping, Tuple, Union
+from typing import Tuple
 from unittest import TestCase
 from base import BaseModel
 import torch

@@ -1,6 +1,8 @@
 import math
 import random
 from functools import partial
+from pathlib import Path
+from typing import Dict, List, Union
 
 import torch
 import torch.nn.functional
@@ -8,7 +10,6 @@ import torch.utils.data
 import torchvision.transforms
 
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
-from src.base.hints import List, Tuple, Mapping, Path, Union
 
 import pickle
 
@@ -19,8 +20,9 @@ interpolating_fn = partial(torch.nn.functional.interpolate,
                            align_corners=False,
                            recompute_scale_factor=False)
 
+
 # put collate_fn at top level in order to be pickable and used inside DataLoader
-def collate_fn(batch, lfr : LaplacianFrequencyRepresentation):
+def collate_fn(batch, lfr: LaplacianFrequencyRepresentation):
     """Function for generating a batch
 
     Args:
@@ -67,7 +69,7 @@ def collate_fn(batch, lfr : LaplacianFrequencyRepresentation):
     return (scale, low_res_batch_i_minus_1, low_res_batch_i), pyramid_i
 
 
-def compute_mean_std(path: str) -> Mapping[str, List[float]]:
+def compute_mean_std(path: str) -> Dict[str, List[float]]:
     """Compute the mean and std of the dataset inside the folder `path`
 
     Args:

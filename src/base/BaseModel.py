@@ -3,18 +3,18 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from .hints import Union, NoReturn, Optimizer_
-
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 import utility
 
+
 # TODO: Documentation
+# TODO: test input as kwargs
 
 class BaseModel(nn.Module, ABC):
     """
-    Base class for handling neural networks
+    Base class for creating a  neural network
     """
 
     def __init__(self, *args, **kwargs):
@@ -27,28 +27,64 @@ class BaseModel(nn.Module, ABC):
 
     @abstractmethod
     def forward(self, *args, **kwargs):
-        """
-        Base method for inference
-        :param args: Any kind of input
-        :param kwargs: Any kind of input
-        :return: output
+        """Base method for inference
 
         NOTE: Use << with torch.no_grad(): >> when executing validation or testing since there is no need to have
         gradients.
+
+        Args:
+            *args: Any kind of input
+            **kwargs: Any kind of input
+
+        Returns:
+            output
         """
         raise NotImplementedError("forward")
 
     @abstractmethod
     def train_step(self, *args, **kwargs):
-        raise NotImplementedError
+        """Define the training step
 
+
+        Args:
+            *args: can be a list of input
+            **kwargs: can be a list of key-value input
+
+        Returns:
+            output
+        """
+        raise NotImplementedError
 
     @abstractmethod
     @torch.no_grad()
     def val_step(self, *args, **kwargs):
+        """Define the training step
+
+        NOTE: Use **decorator** <<torch.no_grad()>> when implementing the function since there is no need to have
+        gradients.
+
+        Args:
+            *args: can be a list of input
+            **kwargs: can be a list of key-value input
+
+        Returns:
+            output
+        """
         raise NotImplementedError
 
     @abstractmethod
     @torch.no_grad()
     def test_step(self, *args, **kwargs):
+        """Define a test step
+
+        NOTE: Use **decorator** <<torch.no_grad()>> when implementing the function since there is no need to have
+        gradients.
+
+        Args:
+            *args: can be a list of input
+            **kwargs: can be a list of key-value input
+
+        Returns:
+            output
+        """
         raise NotImplementedError

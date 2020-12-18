@@ -1,4 +1,4 @@
-from unittest import TestCase
+from unittest import TestCase, skip
 
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 from models.ASDN import ASDN

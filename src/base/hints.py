@@ -1,17 +1,6 @@
-"""
-Define type hints for objects
-"""
-from pathlib import Path
-
-from typing import List, Tuple, Mapping, Union, NoReturn, Callable, Dict, NewType
+from typing import Union, Callable
 
 import torch
-
-# TYPES
-
-
-Optimizer_ = Union[torch.optim.Optimizer, List[torch.optim.Optimizer], Tuple[torch.optim.Optimizer, ...], Mapping[
-    str, torch.optim.Optimizer]]
 
 # loss functions are torch.nn.Module that
 # - in input: (predictions : Tensor[N,*], target : Tensor[N,*] )
@@ -22,6 +11,4 @@ Criterion = Union[torch.nn.Module, Callable[[torch.Tensor, torch.Tensor], Union[
 # (prediction,target) -> float
 Metric = Union[torch.nn.Module, Callable[[torch.Tensor, torch.Tensor], float]]
 
-__all__ = ["List", "Tuple", "Mapping", "Union", "NoReturn"]
-
-__all__ += ["Tensor", "Optimizer_", "Criterion", "Metric"]
+__all__ = ["Criterion", "Metric"]

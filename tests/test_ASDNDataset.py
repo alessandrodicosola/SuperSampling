@@ -1,6 +1,6 @@
 from functools import partial
 from typing import Tuple
-from unittest import TestCase
+from unittest import TestCase, skip
 import unittest
 from torch.utils.data import DataLoader
 import torch
@@ -21,10 +21,10 @@ class TestASDNDataset(TestCase):
         result = COLLATE_FN([batch])
 
         assert isinstance(result, Tuple), f"expected: Tuple. returned: {type(result)}"
-        assert len(result) == 3, f"expected: 2, returned: {len(result)}"
-        assert isinstance(result[0], float), f"expected: float, returned: {type(result[0])}"
-        assert len(result[1]) == 2, f"expected: 2, returned: {len(result[1])}"
-        assert len(result[2]) == 2, f"expected: 2, returned: {len(result[2])}"
+        assert len(result) == 2, f"expected: 3, returned: {len(result)}"
+        assert isinstance(result[0][0], float), f"expected: float, returned: {type(result[0])}"
+        assert isinstance(result[0][1], torch.Tensor), f"expected: float, returned: {type(result[0])}"
+        assert isinstance(result[0][2], torch.Tensor), f"expected: float, returned: {type(result[0])}"
 
     def test_dataset(self):
         from tqdm.auto import tqdm
@@ -50,12 +50,9 @@ class TestASDNDataset(TestCase):
 
         denormalize = NormalizeInverse(dataset.mean, dataset.std)
 
-        for index, ((scale), (low_res_batch_i_minus_1, pyramid_i_minus_1), (low_res_batch_i, pyramid_i)) in enumerate(
+        for index, ((scale, low_res_batch_i_minus_1, low_res_batch_i), pyramid_i) in enumerate(
                 tqdm(dataloader)):
             if index == 0:
-                low_res_batch_i_minus_1 = denormalize(low_res_batch_i_minus_1)
-                pyramid_i_minus_1 = denormalize(pyramid_i_minus_1)
-
                 low_res_batch_i = denormalize(low_res_batch_i)
                 pyramid_i = denormalize(pyramid_i)
 
@@ -64,19 +61,11 @@ class TestASDNDataset(TestCase):
 
                 plt.figure(figsize=(10, 30))
 
-                plt.subplot(411)
-                plt.imshow(make_grid(low_res_batch_i_minus_1[:MAX_IMAGES], nrow=N_ROW).permute(1, 2, 0))
-                plt.title("Low res i-1")
-
-                plt.subplot(412)
-                plt.imshow(make_grid(pyramid_i_minus_1[:MAX_IMAGES], nrow=N_ROW).permute(1, 2, 0))
-                plt.title("Ground truth i-1")
-
-                plt.subplot(413)
+                plt.subplot(211)
                 plt.imshow(make_grid(low_res_batch_i[:MAX_IMAGES], nrow=N_ROW).permute(1, 2, 0))
                 plt.title("Low res i")
 
-                plt.subplot(414)
+                plt.subplot(212)
                 plt.imshow(make_grid(pyramid_i[:MAX_IMAGES], nrow=N_ROW).permute(1, 2, 0))
                 plt.title("Ground truth i")
 

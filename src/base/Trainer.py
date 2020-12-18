@@ -2,26 +2,29 @@ from __future__ import annotations
 
 import operator
 import re
-from collections import defaultdict, namedtuple
+
+from collections import namedtuple
 from itertools import starmap
-from typing import Any, NamedTuple
 
 import torch
 import torch.optim
 import torch.utils.data
 import torch.utils.tensorboard
-import typing
+import torch.optim.lr_scheduler
+
+from typing import NoReturn, Union, List, Dict, NamedTuple, Callable, Tuple
 
 import utility
-from base import BaseModel
-from base.Callback import Callback, ListCallback
 
-from base.hints import Union, List, Tuple, Criterion, Metric, Dict, Callable
+from base import BaseModel
+from base.Callback import Callback
 
 from tqdm.auto import tqdm
 
 import sys
 import logging
+
+from base.hints import Criterion, Metric
 
 logging.basicConfig()
 logger = logging.getLogger("Trainer")
@@ -29,19 +32,20 @@ logger.setLevel(logging.DEBUG)
 
 
 # TODO: Review comments and docstring
-# TODO: Callback tests
-# TODO: Checkpoint experiment
-# TODO: Implement resuming
+# TODO: Callbacks
 
 class Trainer:
-    """ Class for training a BaseModel network
+    """Define a class for handling training
 
     Args:
-        experiment: name of the experiment (define the name of the log folder)
+        experiment: name of the experiment
         model: model to train
         optimizer: optimizer to use
-        lr_scheduler: learning rate to use
-        callback: callbacks to call
+        criterion: criterion to use
+        metric: metric or list of metric or dict of metric to use. (Default: None)
+        lr_scheduler: scheduler to use. (Default: None)
+        callback: callback(s) to use. (Default: None)
+        device: device where compute the operation. If none a device will be used automatically based on ones available. (Default: None)
     """
 
     def __init__(self,
@@ -51,7 +55,7 @@ class Trainer:
                  criterion: Criterion,
                  metric: Union[Metric, List[Metric], Dict[str, Metric]] = None,
                  lr_scheduler: torch.optim.lr_scheduler = None,
-                 callback: Union[Callback, ListCallback] = None,
+                 callback: Callback = None,
                  device: torch.device = None):
 
         # set the experiment name
@@ -78,6 +82,7 @@ class Trainer:
 
         # set TrainingState type (it's dynamic: it changes with metric)
         # TrainingState(loss,metric1,...,metric_n)
+        # set HistoryState (which is based on TrainingState)
         self.TrainingState = Trainer._register_training_state_type(metric)
         self.HistoryState = self._register_history_state_type()
 
@@ -99,12 +104,27 @@ class Trainer:
 
         logger.debug(f"Init trainer class for {experiment} with {model.name}")
 
-    def _stop_fn(self, sender=None):
+    def _stop_fn(self, sender=None) -> NoReturn:
+        """Function for stopping the training
+
+        Args:
+            sender: object which call the function
+        """
         logger.debug(f"Trainer stopped by {'itself' if sender is None else sender.__class__.__name__}")
         self.stop = True
 
     def train(self, loader: torch.utils.data.DataLoader) -> 'TrainingState':
-        """Define the train loop for one epoch"""
+        """Define the train loop for one epoch
+
+        Args:
+            loader: DataLoader for extracting train batches
+
+        Returns:
+            TrainingState (a namedtuple generated dynamically) which contains loss and metric(s) (if self.metric is not None)
+
+        See Also
+            :class:`~Trainer._register_training_state_type(metric)` for understanding the return type
+        """
 
         logger.debug("Set model in training mode")
         self.model.train()
@@ -180,6 +200,17 @@ class Trainer:
         return self._return_training_state(epoch_loss=epoch_loss, epoch_metric=epoch_metric)
 
     def validation(self, loader: torch.utils.data.DataLoader) -> 'TrainingState':
+        """Define the validation loop for one epoch
+
+        Args:
+            loader: DataLoader for extracting validation batches
+
+        Returns:
+            TrainingState (a namedtuple generated dynamically) which contains loss and metric(s) (if self.metric is not None)
+
+        See Also
+            :class:`~Trainer._register_training_state_type(metric)` for understanding the return type
+        """
         self.model.eval()
 
         epoch_loss = 0
@@ -215,6 +246,22 @@ class Trainer:
 
     def fit(self, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader,
             epochs: int) -> 'HistoryState':
+        """Define the train-validation loop over all epochs
+
+        Args:
+            train_loader: DataLoader for extracting train batches
+            val_loader: DataLoader for extracting validation batches
+            epochs: amount of epochs
+
+        Returns:
+            HistoryState (a namedtuple that depends on TrainingState) which contains two lists:
+                - train: List[TrainingState]
+                - val  : List[TrainingState]
+
+        See Also
+            :class:`~Trainer._register_training_state_type(metric)` for understanding TrainingState
+            :class:`~Trainer._register_history_state_type()` for understanding HistoryState
+        """
 
         # RESUMING ATTRIBUTES
         # since the training is stopped at the beginning of the loop the last_epoch is indeed the new epoch to do
@@ -258,10 +305,28 @@ class Trainer:
         return history
 
     def _init_param_for_resuming(self, key, default):
+        """Define a function for initialize parameters for resuming
+
+        Args:
+            key: Parameter to check
+            default: Default value to assign
+
+        Returns:
+            Default or saved value
+        """
         return default if not hasattr(self, key) else getattr(self, key)
 
     @staticmethod
-    def _register_training_state_type(metric):
+    def _register_training_state_type(metric: Union[Metric, List[Metric], Dict[str, Metric]]) -> 'TrainingState':
+        """Register the TrainingState type defined at runtime
+
+        Args:
+            metric: Metric object. (Can be: Metric, List[Metric], Dict[str,Metric])
+
+        Returns:
+            TrainingState namedtuple:
+                TrainingState(loss, metric_1, metric_2,...,metric_n)
+        """
         field_names = 'loss'
         if metric:
             names = Trainer._get_metric_name(metric)
@@ -276,19 +341,38 @@ class Trainer:
 
         TrainingState = namedtuple("TrainingState", field_names)
 
-        # set global
+        # register in globals in order to be visible for pickling
         globals()[TrainingState.__name__] = TrainingState
         return TrainingState
 
-    def _register_history_state_type(self):
+    def _register_history_state_type(self) -> 'HistoryState':
+        """Register the HistoryState type defined at runtime depending on TrainingState
+
+        Returns:
+            HistoryState namedtuple:
+            HistoryState(train=List[TrainingState], val=List[TrainingState])
+        """
         TrainingState = self.TrainingState
 
-        HistoryState = namedtuple("HistoryState", "train val")
-
+        HistoryState = NamedTuple("HistoryState", [
+            ("train", List[TrainingState]),
+            ("val", List[TrainingState])
+        ])
+        # register in globals in order to be visible for pickling
         globals()[HistoryState.__name__] = HistoryState
         return HistoryState
 
-    def _return_training_state(self, epoch_loss, epoch_metric):
+    def _return_training_state(self, epoch_loss: float,
+                               epoch_metric: Union[Metric, List[Metric], Dict[str, Metric]]) -> 'TrainingState':
+        """Utility function for creating a TrainingState object given the inputs
+
+        Args:
+            epoch_loss: the computed loss
+            epoch_metric: the computed metric(s)
+
+        Returns:
+            TrainingState (namedtuple) object. (see :class:`~Trainer._register_training_state_type(metric)` for understanding the returned type)
+        """
         if self.metric:
             if isinstance(epoch_metric, Dict):
                 epoch_metric = epoch_metric.values()
@@ -296,25 +380,50 @@ class Trainer:
             if isinstance(epoch_metric, float):
                 return self.TrainingState(epoch_loss, epoch_metric)
             else:
+                # epoch_metric is a list
                 return self.TrainingState(epoch_loss, *epoch_metric)
         else:
             return self.TrainingState(epoch_loss)
 
     @staticmethod
-    def _return_loss_and_metric_formatted(state: 'TrainingState', train: bool):
+    def _return_loss_and_metric_formatted(state: 'TrainingState', train: bool) -> str:
+        """Format TrainingState object in  readable way for printing
+        Args:
+            state: TrainingState to format
+            train: if the trainer is training or validating
+
+        Returns:
+            Formatted TrainingState as string
+        """
         split = "train" if train else "val"
         return " ".join(
             f"{split}_{key}: {value}" for key, value in state._asdict().items()
         )
 
     @staticmethod
-    def _validate_field_names(name):
+    def _validate_field_names(name: str):
+        """Validate names in order to be accepted as field name for a namedtuple
+
+        Args:
+            name: name to rename
+
+        Returns:
+            well foramtted name
+        """
         return re.sub(r"[^\w\d]+", '_', name)
 
     @staticmethod
-    def _get_metric_name(metric):
+    def _get_metric_name(metric: Union[Metric, List[Metric], Dict[str, Metric]]):
+        """Returns a name or list of names for each metric
+
+        Args:
+            metric: metric(s) to extract the name
+
+        Returns:
+            name or list of names
+        """
         if isinstance(metric, torch.nn.Module):
-            return str(metric).lower().strip()
+            return str(metric.__class__.__name__).lower().strip()
         elif isinstance(metric, Callable):
             return str(metric.__name__).lower().strip()
         elif isinstance(metric, List):
@@ -323,6 +432,14 @@ class Trainer:
             return [key.lower().strip() for key in metric]
 
     def _forward(self, X):
+        """Define the base forward
+
+        Args:
+            X: input
+
+        Returns:
+            output
+        """
         if isinstance(X, torch.Tensor):
             return self.model.train_step(X) if self.model.training else self.model.val_step(X)
         elif isinstance(X, (List, Tuple)):
@@ -331,24 +448,48 @@ class Trainer:
             raise RuntimeError(f"Invalid type: {type(X)}")
 
     @staticmethod
-    def _init_metric_obj(metric):
+    def _init_metric_obj(metric: Union[Metric, List[Metric], Dict[str, Metric]]) -> Union[
+        float, List[float], Dict[str, float]]:
+        """Initialize the metric(s)
+
+        Args:
+            metric:
+
+        Returns:
+            - float value if is Metric
+            - list of float if it is a list of Metrics
+            - dict of float if it is a dict of Metrics
+        """
         # if isinstance(self.metric, Metric):
         # It's a python design decision to not use GenericAlias
         if isinstance(metric, (Callable, torch.nn.Module)):
             logger.debug("metric is a function")
-            return 0
+            return 0.
         elif isinstance(metric, List):
             logger.debug("metric is a list")
-            return [0 for _ in range(len(metric))]
+            return [0. for _ in range(len(metric))]
         elif isinstance(metric, Dict):
             logger.debug("metric is a dict")
-            return {key: 0 for key in metric}
+            return {key: 0. for key in metric}
         else:
             raise RuntimeError(
                 f"Invalid type: received {type(metric)}, expected: Metric,List[Metric],Dict[str,Metric]")
 
     @staticmethod
-    def _compute_metric(metric, prediction: torch.Tensor, target: torch.Tensor):
+    def _compute_metric(metric: Union[Metric, List[Metric], Dict[str, Metric]], prediction: torch.Tensor,
+                        target: torch.Tensor) -> [float, List[float], Dict[str, float]]:
+        """
+        Compute metric on prediction and target
+        Args:
+            metric: metric(s) to use
+            prediction: output of the network
+            target: target to compare
+
+        Returns:
+            - float if metric is Metric
+            - list of float if metric is a List[Metric]
+            - dict of float if metric is a Dict[str,Metric]
+        """
         if isinstance(prediction, torch.Tensor) and isinstance(target, torch.Tensor):
             if isinstance(metric, (Callable, torch.nn.Module)):
                 return metric(prediction, target)
@@ -359,12 +500,18 @@ class Trainer:
             else:
                 raise RuntimeError(f"Unsupported type: {type(metric)}")
         else:
-            # TODO: Improve this
+            # TODO: Allow metric with more than one input and target
             raise RuntimeError(
                 f"Unsupported type: (prediction){type(prediction)}, (target){type(target)}, expected Tensor")
 
     @staticmethod
-    def _assert_out_requires_grad(out, train):
+    def _assert_out_requires_grad(out, train) -> NoReturn:
+        """Assert that out contains or doesn't contains gradient based on if trainer is training or validating
+
+        Args:
+            out: output of the train_step or val_step
+            train: define if the Trainer is training or validating
+        """
         if isinstance(out, torch.Tensor):
             assert out.requires_grad == train
         elif isinstance(out, (List, Tuple)):
@@ -372,7 +519,15 @@ class Trainer:
                 if isinstance(elem, torch.Tensor):
                     assert elem.requires_grad == train
 
-    def _get_batch_size(self, X):
+    def _get_batch_size(self, X) -> int:
+        """Get the size of a batch from the input tensor X
+
+        Args:
+            X: batch tensor given by the DataLoader
+
+        Returns:
+            Size of a batch
+        """
         if isinstance(X, torch.Tensor):
             return X.size(0)
         elif isinstance(X, (List, Tuple)):
@@ -381,7 +536,13 @@ class Trainer:
         else:
             raise RuntimeError(f"Invalid type: {type(X)}")
 
-    def _move_to_device(self, X, y):
+    def _move_to_device(self, X, y) -> NoReturn:
+        """ Move input and target to device
+
+        Args:
+            X: batch input returned by the DataLoader
+            y: batch target returned by the DataLoader
+        """
         if isinstance(X, torch.Tensor):
             X = X.to(self.device)
         elif isinstance(X, Tuple):
@@ -402,7 +563,7 @@ class Trainer:
 
         return X, y
 
-    def _create_args_for_callback(self, **kwargs):
+    def _create_args_for_callback(self, **kwargs) -> Dict:
         """ Return a dictionary of arguments to pass to callbacks
 
         Args:
@@ -427,8 +588,11 @@ class Trainer:
         """ Execute operation between first and second (handling operation element wise if they are List or Dict)
         Args:
             operation: scalar operation to do (e.g. add)
-            first
-            second
+            first: left element
+            second: right element
+
+        Returns:
+            output of the operation
         """
 
         def __for_list(current: float, computed: float):
@@ -445,7 +609,7 @@ class Trainer:
             return operation(first, second)
         # if current is a list apply operation element wise
         elif isinstance(first, List):
-            # in case other is a int or float, create a list with other repeated as much as len(current)
+            # in case second is a int or float, create a list with second repeated as much as len(first)
             if isinstance(second, (int, float)):
                 second = [second] * len(first)
             return list(starmap(__for_list, zip(first, second)))
@@ -457,7 +621,9 @@ class Trainer:
         else:
             raise RuntimeError(type(first), type(second))
 
-    def save_model(self):
+    def save_model(self) -> NoReturn:
+        """ Function for save the parameters and state dictionary of the model
+        """
         try:
             dict_to_save = {"param": self.model.__dict__,
                             "state": self.model.state_dict()
@@ -467,7 +633,14 @@ class Trainer:
         except:
             logger.error("An error occurred saving the model.")
 
-    def save_experiment(self, last_epoch: int, last_loss: float, current_history: 'HistoryState'):
+    def save_experiment(self, last_epoch: int, last_loss: float, current_history: 'HistoryState') -> NoReturn:
+        """ A function for saving the Trainer for resuming the training
+
+        Args:
+            last_epoch: last epoch done ( since the trainer is stopped at the beginning of the loop the last epoch is the epoch from which to resume the training )
+            last_loss: last computed loss (for init early stopping )
+            current_history: last computed history ( in order to merge the old history with new one )
+        """
         try:
             checkpoint_path = self.log_dir / f"trainer_{last_epoch}.pytorch"
             logger.debug(f"Save trainer information at: {checkpoint_path}")
@@ -500,6 +673,17 @@ class Trainer:
 
     @classmethod
     def load_experiment(cls, base_model_dir: str, experiment: str, last_epoch: int):
+        """Load function for initialize Trainer object given the state sved before
+
+        Args:
+            base_model_dir: dir of the model to load
+            experiment: experiment to load
+            last_epoch: last epoch to load
+
+        Returns:
+
+        """
+
         checkpoint_path = utility.get_models_dir() / base_model_dir / experiment / f"trainer_{last_epoch}.pytorch"
         if not checkpoint_path.exists():
             raise RuntimeError(f"{checkpoint_path} doesn't exists.")
