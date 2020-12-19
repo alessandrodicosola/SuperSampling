@@ -5,6 +5,7 @@ import re
 
 from collections import namedtuple
 from itertools import starmap
+from pathlib import Path
 
 import torch
 import torch.optim
@@ -14,25 +15,33 @@ import torch.optim.lr_scheduler
 
 from typing import NoReturn, Union, List, Dict, NamedTuple, Callable, Tuple
 
+import typing
+
 import utility
 
-from base import BaseModel
-from base.Callback import Callback
+from base import BaseModule
+from base.Callbacks.Callback import Callback, ListCallback
 
 from tqdm.auto import tqdm
 
-import sys
 import logging
 
+from base.Callbacks import Callback, ListCallback, StdOutCallback
+from base.Callbacks.TensorboardCallback import TensorboardCallback
 from base.hints import Criterion, Metric
 
 logging.basicConfig()
 logger = logging.getLogger("Trainer")
 logger.setLevel(logging.DEBUG)
 
-
-# TODO: Review comments and docstring
 # TODO: Callbacks
+
+
+ModelInformation = typing.NamedTuple('ModelInformation', [
+    ("name", str),
+    ("model_dir", Path)
+])
+
 
 class Trainer:
     """Define a class for handling training
@@ -50,13 +59,16 @@ class Trainer:
 
     def __init__(self,
                  experiment: str,
-                 model: BaseModel,
+                 model: BaseModule,
                  optimizer: torch.optim.Optimizer,
                  criterion: Criterion,
                  metric: Union[Metric, List[Metric], Dict[str, Metric]] = None,
                  lr_scheduler: torch.optim.lr_scheduler = None,
-                 callback: Callback = None,
+                 callback: Union[Callback, List[Callback]] = None,
                  device: torch.device = None):
+
+        # register model information
+        self.model_info = Trainer._register_model_information(model)
 
         # set the experiment name
         self.experiment = experiment
@@ -97,12 +109,37 @@ class Trainer:
         self.stop = False
 
         # define where log and files events will be saved
-        self.log_dir = self.model.model_dir / experiment
-        # TODO Move to TensorbordCallback
-        # TODO Better file naming for writer
-        self.tensorboard = torch.utils.tensorboard.SummaryWriter(str(self.log_dir))
+        self.log_dir = self.model_info.model_dir / experiment
 
-        logger.debug(f"Init trainer class for {experiment} with {model.name}")
+        self.callback = self._register_callbacks(callback)
+
+        logger.debug(f"Init trainer class for {self.experiment} with {self.model_info.name}")
+
+    def _register_model_information(model: torch.nn.Module):
+        """
+        Save model information inside the Trainer
+
+        Returns:
+            ModelInformation namedtuple
+        """
+        name = model.__class__.__name__
+        model_dir = utility.get_models_dir() / name
+        return ModelInformation(name=name,
+                                model_dir=model_dir)
+
+    def _register_callbacks(self, optional_callback: Union[Callback, List[Callback]]):
+        default_callbacks = [
+            StdOutCallback(),
+            TensorboardCallback(str(self.log_dir))
+        ]
+
+        if optional_callback:
+            if isinstance(optional_callback, Callback):
+                optional_callback = [optional_callback]
+
+            default_callbacks = default_callbacks + optional_callback
+
+        return ListCallback.from_list(default_callbacks)
 
     def _stop_fn(self, sender=None) -> NoReturn:
         """Function for stopping the training
@@ -113,11 +150,14 @@ class Trainer:
         logger.debug(f"Trainer stopped by {'itself' if sender is None else sender.__class__.__name__}")
         self.stop = True
 
-    def train(self, loader: torch.utils.data.DataLoader) -> 'TrainingState':
+    def train(self, loader: torch.utils.data.DataLoader, **kwargs) -> 'TrainingState':
         """Define the train loop for one epoch
 
         Args:
             loader: DataLoader for extracting train batches
+
+        Keyword Args:
+            epoch: current epoch
 
         Returns:
             TrainingState (a namedtuple generated dynamically) which contains loss and metric(s) (if self.metric is not None)
@@ -147,6 +187,12 @@ class Trainer:
             logger.debug("Extracting batch size")
             BATCH_SIZE = self._get_batch_size(X)
             total_samples += BATCH_SIZE
+
+            if self.callback:
+                self.callback.start_batch(
+                    self._create_args_for_callback(batch_index=index_batch,
+                                                   batch_size=BATCH_SIZE,
+                                                   epoch=kwargs.get('epoch')))
 
             # move batch and targets to device
             logger.debug("Move X and y to the selected device")
@@ -188,6 +234,13 @@ class Trainer:
                 # add metric computed previously with the one computed now
                 epoch_metric = Trainer._execute_operation(operator.add, epoch_metric, computed_metric)
 
+            if self.callback:
+                self.callback.end_batch(
+                    self._create_args_for_callback(batch_index=index_batch,
+                                                   batch_size=BATCH_SIZE,
+                                                   epoch=kwargs.get('epoch'),
+                                                   batch_metrics=self._return_training_state(epoch_loss, epoch_metric)))
+
         # average the loss
         epoch_loss = epoch_loss / total_samples
 
@@ -199,7 +252,7 @@ class Trainer:
         logger.debug("Returning loss and metrics of the whole dataset")
         return self._return_training_state(epoch_loss=epoch_loss, epoch_metric=epoch_metric)
 
-    def validation(self, loader: torch.utils.data.DataLoader) -> 'TrainingState':
+    def validation(self, loader: torch.utils.data.DataLoader, **kwargs) -> 'TrainingState':
         """Define the validation loop for one epoch
 
         Args:
@@ -223,6 +276,12 @@ class Trainer:
             BATCH_SIZE = self._get_batch_size(X)
             total_samples += BATCH_SIZE
 
+            if self.callback:
+                self.callback.start_batch(
+                    **self._create_args_for_callback(batch_index=index_batch,
+                                                     batch_size=BATCH_SIZE,
+                                                     epoch=kwargs.get('epoch')))
+
             X, y = self._move_to_device(X, y)
 
             out = self._forward(X)
@@ -236,6 +295,14 @@ class Trainer:
             if self.metric:
                 computed_metric = Trainer._compute_metric(self.metric, prediction=out, target=y)
                 epoch_metric = Trainer._execute_operation(operator.add, epoch_metric, computed_metric)
+
+            if self.callback:
+                self.callback.end_batch(
+                    **self._create_args_for_callback(batch_index=index_batch,
+                                                     batch_size=BATCH_SIZE,
+                                                     epoch=kwargs.get('epoch'),
+                                                     batch_metrics=self._return_training_state(epoch_loss,
+                                                                                               epoch_metric)))
 
         epoch_loss = epoch_loss / total_samples
 
@@ -276,31 +343,34 @@ class Trainer:
         for epoch in range(start_epoch, epochs + 1):
 
             if self.stop:
+                # TODO Save experiment
                 break
 
             if self.callback:
-                self.callback.start_epoch(
-                    self._create_args_for_callback(resuming=resuming, epoch=epoch, last_loss=last_loss))
+                self.callback.start_epoch(**self._create_args_for_callback(resuming=resuming,
+                                                                           epoch=epoch,
+                                                                           last_loss=last_loss)
+                                          )
 
-            train_state = self.train(train_loader)
-            val_state = self.validation(val_loader)
+            train_state = self.train(train_loader, epoch=epoch)
+            val_state = self.validation(val_loader, epoch=epoch)
 
             history.train.append(train_state)
             history.val.append(val_state)
 
-            logger.debug(Trainer._return_loss_and_metric_formatted(train_state, train=True))
-            logger.debug(Trainer._return_loss_and_metric_formatted(val_state, train=False))
+            # logger.debug(Trainer._return_loss_and_metric_formatted(train_state, train=True))
+            # logger.debug(Trainer._return_loss_and_metric_formatted(val_state, train=False))
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
 
             if self.callback:
-                self.callback.end_epoch(
-                    self._create_args_for_callback(resuming=resuming,
-                                                   epoch=epoch,
-                                                   train_state=train_state,
-                                                   val_state=val_state,
-                                                   current_history=history))
+                self.callback.end_epoch(**self._create_args_for_callback(resuming=resuming,
+                                                                         epoch=epoch,
+                                                                         train_state=train_state,
+                                                                         val_state=val_state,
+                                                                         current_history=history)
+                                        )
 
         return history
 
@@ -578,7 +648,8 @@ class Trainer:
         base_kwargs = {
             "stop_fn": self._stop_fn,
             "log_dir": self.log_dir,
-            "optimizer": self.optimizer
+            "optimizer": self.optimizer,
+            "train": self.model.training
         }
 
         return {**base_kwargs, **kwargs}
@@ -621,6 +692,9 @@ class Trainer:
         else:
             raise RuntimeError(type(first), type(second))
 
+
+    #TODO Rwrite save_model, save_experiment, load_experiment
+
     def save_model(self) -> NoReturn:
         """ Function for save the parameters and state dictionary of the model
         """
@@ -628,7 +702,7 @@ class Trainer:
             dict_to_save = {"param": self.model.__dict__,
                             "state": self.model.state_dict()
                             }
-            model_path = self.model.model_dir / f"{self.model.name}_state_dict.pytorch"
+            model_path = self.model_info.model_dir / f"{self.model_info.name}_state_dict.pytorch"
             torch.save(dict_to_save, model_path)
         except:
             logger.error("An error occurred saving the model.")
@@ -651,7 +725,7 @@ class Trainer:
                 "optimizer": self.optimizer,
                 "lr_scheduler": self.lr_scheduler,
                 "metric": self.metric,
-                "callback": self.callback,
+                #"callback": self.callback,
                 "device": self.device,
                 #
                 "epoch": last_epoch,
@@ -696,7 +770,7 @@ class Trainer:
                   criterion=what_to_load['criterion'],
                   metric=what_to_load['metric'],
                   lr_scheduler=what_to_load['lr_scheduler'],
-                  callback=what_to_load['callback'],
+                  #callback=what_to_load['callback'],
                   device=what_to_load['device'])
 
         # for resuming training

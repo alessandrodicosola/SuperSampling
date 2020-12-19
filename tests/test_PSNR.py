@@ -6,7 +6,7 @@ from torch.nn import MSELoss
 from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
 
-from base import BaseModel
+from base import BaseModule
 from base.Trainer import Trainer
 from base.metrics.PSNR import PSNR
 from tests.util_for_testing import RandomDataset, NetworkOneInput

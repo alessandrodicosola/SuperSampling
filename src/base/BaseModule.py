@@ -8,22 +8,10 @@ from pathlib import Path
 
 import utility
 
-
-# TODO: Documentation
-# TODO: test input as kwargs
-
-class BaseModel(nn.Module, ABC):
+class BaseModule(nn.Module, ABC):
     """
     Base class for creating a  neural network
     """
-
-    def __init__(self, *args, **kwargs):
-        super(BaseModel, self).__init__()
-
-        # e.g. BaseModel
-        self.name: str = self.__class__.__name__
-        # e.g. ./models/BaseModels
-        self.model_dir: Path = utility.get_models_dir() / self.name
 
     @abstractmethod
     def forward(self, *args, **kwargs):

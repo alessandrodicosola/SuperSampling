@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 
-from base import BaseModel
+from base import BaseModule
 
 
 class RandomDataset(Dataset):
@@ -19,7 +19,7 @@ class RandomDataset(Dataset):
         return tuple([torch.rand(self.input_size) for _ in range(self.n_input)]), torch.rand(self.target_size)
 
 
-class NetworkOneInput(BaseModel):
+class NetworkOneInput(BaseModule):
 
     def train_step(self, input):
         return self(input)
@@ -41,7 +41,7 @@ class NetworkOneInput(BaseModel):
         return self.out(self.conv(input))
 
 
-class NetworkTwoInputs(BaseModel):
+class NetworkTwoInputs(BaseModule):
 
     def __init__(self, input_size, low_features):
         super(NetworkTwoInputs, self).__init__()
@@ -65,7 +65,7 @@ class NetworkTwoInputs(BaseModel):
     def test_step(self, input1, input2):
         return self(input1, input2)
 
-class BaseModelTwoOutput(BaseModel):
+class BaseModuleTwoOutput(BaseModule):
     def forward(self, input):
         # do some computation otherwise requires_grad is not set
         input = input + 0.0

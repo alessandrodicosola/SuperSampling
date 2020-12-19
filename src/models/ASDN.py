@@ -1,6 +1,6 @@
 import math
 
-from base import BaseModel
+from base import BaseModule
 
 import torch
 import torch.nn
@@ -312,7 +312,7 @@ class ImageReconstructionBranch(torch.nn.Module):
 
 # endregion
 
-class ASDN(BaseModel):
+class ASDN(BaseModule):
     """ASDN: A Deep Convolutional Network for Arbitrary Scale Image Super-Resolution implementation
 
     Args:

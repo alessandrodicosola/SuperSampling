@@ -2,11 +2,11 @@ import unittest
 from pathlib import Path
 from typing import Tuple
 from unittest import TestCase
-from base import BaseModel
+from base import BaseModule
 import torch
 
 
-class BaseModelOneInput(BaseModel):
+class BaseModuleOneInput(BaseModule):
     def forward(self, input):
         # do some computation otherwise requires_grad is not set
         input = input + 0.0
@@ -24,7 +24,7 @@ class BaseModelOneInput(BaseModel):
         return self(input)
 
 
-class BaseModelTwoInput(BaseModel):
+class BaseModuleTwoInput(BaseModule):
     def forward(self, input1, input2):
         # do some computation otherwise requires_grad is not set
         input1 = input1 + 0.0
@@ -44,7 +44,7 @@ class BaseModelTwoInput(BaseModel):
         return self(input1, input2)
 
 
-class BaseModelTwoOutput(BaseModel):
+class BaseModuleTwoOutput(BaseModule):
     def forward(self, input):
         # do some computation otherwise requires_grad is not set
         input = input + 0.0
@@ -66,7 +66,7 @@ class TestBaseModel(TestCase):
 
     def test_one_input_grad(self):
         input = torch.rand(5, requires_grad=True)
-        model = BaseModelOneInput()
+        model = BaseModuleOneInput()
 
         model.train()
         self.assertTrue(model(input).requires_grad)
@@ -78,7 +78,7 @@ class TestBaseModel(TestCase):
 
     def test_two_input_grad(self):
         input = torch.rand(5, requires_grad=True)
-        model = BaseModelTwoInput()
+        model = BaseModuleTwoInput()
 
         model.train()
         self.assertTrue(model(input, input).requires_grad)
@@ -90,7 +90,7 @@ class TestBaseModel(TestCase):
 
     def test_two_output_grad(self):
         input = torch.rand(5, requires_grad=True)
-        model = BaseModelTwoOutput()
+        model = BaseModuleTwoOutput()
 
         model.train()
         out = model(input)

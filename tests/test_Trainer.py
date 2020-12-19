@@ -7,7 +7,7 @@ from torch.nn import MSELoss, Module
 from torch.optim import Adam, Optimizer
 from torch.utils.data import DataLoader, Dataset
 
-from base import BaseModel
+from base import BaseModule
 from base.Trainer import Trainer
 from base.hints import Criterion
 
@@ -217,7 +217,7 @@ class Test_save_load_Trainer(TestCase):
         loss = MSELoss().to(device)
         model = NetworkOneInput(input_size, 32).to(device)
         adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(adam, 10)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(adam, 3)
         trainer = Trainer("test", model, adam, loss, metric=metric_dict, lr_scheduler=lr_scheduler, device=device)
 
         try:
