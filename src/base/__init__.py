@@ -1,3 +1,2 @@
-from .BaseModule import BaseModule
-
-__all__ = ["BaseModule"]
+from base.BaseModule import BaseModule
+__all__ = ['BaseModule']

@@ -9,7 +9,7 @@ class TensorboardCallback(Callback):
     """Callback for writing tensorboard summary"""
 
     def start_epoch(self, *args, **kwargs):
-        pass
+        self.writer = torch.utils.tensorboard.SummaryWriter(self.log_dir)
 
     def end_epoch(self, *args, **kwargs):
         epoch = kwargs.get('epoch')
@@ -23,7 +23,7 @@ class TensorboardCallback(Callback):
             self.writer.add_scalar(f"Epoch/Train/{key}", value, epoch)
 
         self.writer.add_scalar(f"Epoch/lr", kwargs.get('optimizer').param_groups[0]['lr'], epoch)
-        self.writer.flush()
+        self.writer.close()
 
     def start_batch(self, *args, **kwargs):
         pass
@@ -33,5 +33,5 @@ class TensorboardCallback(Callback):
 
     def __init__(self, log_dir: str):
         super(TensorboardCallback, self).__init__()
-        log_dir += "/" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S_%f")
-        self.writer = torch.utils.tensorboard.SummaryWriter(log_dir)
+        self.log_dir = log_dir + "/" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S_%f")
+        self.writer = None

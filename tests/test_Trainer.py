@@ -16,6 +16,7 @@ from models.ASDN import ASDN
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 from tests.util_for_testing import RandomDataset, NetworkOneInput, NetworkTwoInputs
 
+# TODO Refactor test
 
 class TestForward(TestCase):
 

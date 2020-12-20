@@ -3,7 +3,7 @@ from __future__ import annotations
 import operator
 import re
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from itertools import starmap
 from pathlib import Path
 
@@ -24,18 +24,14 @@ from base.Callbacks.Callback import Callback, ListCallback
 
 from tqdm.auto import tqdm
 
-import logging
+import base.logging_
 
 from base.Callbacks import Callback, ListCallback, StdOutCallback
 from base.Callbacks.TensorboardCallback import TensorboardCallback
 from base.hints import Criterion, Metric
 
-logging.basicConfig()
-logger = logging.getLogger("Trainer")
-logger.setLevel(logging.DEBUG)
-
-# TODO: Callbacks
-
+# TODO: Callbacks: StdOut,Tensorboard,EarlyStoping,Checkpoint creator
+# TODO: Insert Raise into documentation
 
 ModelInformation = typing.NamedTuple('ModelInformation', [
     ("name", str),
@@ -113,7 +109,8 @@ class Trainer:
 
         self.callback = self._register_callbacks(callback)
 
-        logger.debug(f"Init trainer class for {self.experiment} with {self.model_info.name}")
+        self.logger = base.logging_.get("Trainer", self.log_dir)
+        self.logger.debug(f"Init trainer class for {self.experiment} with {self.model_info.name}")
 
     def _register_model_information(model: torch.nn.Module):
         """
@@ -147,7 +144,7 @@ class Trainer:
         Args:
             sender: object which call the function
         """
-        logger.debug(f"Trainer stopped by {'itself' if sender is None else sender.__class__.__name__}")
+        self.logger.debug(f"Trainer stopped by {'itself' if sender is None else sender.__class__.__name__}")
         self.stop = True
 
     def train(self, loader: torch.utils.data.DataLoader, **kwargs) -> 'TrainingState':
@@ -166,7 +163,7 @@ class Trainer:
             :class:`~Trainer._register_training_state_type(metric)` for understanding the return type
         """
 
-        logger.debug("Set model in training mode")
+        self.logger.debug("Set model in training mode")
         self.model.train()
 
         epoch_loss = 0
@@ -176,15 +173,15 @@ class Trainer:
         epoch_metric = Trainer._init_metric_obj(self.metric) if self.metric else None
 
         for index_batch, (X, y) in enumerate(tqdm(loader, total=len(loader), unit="batch", leave=False)):
-            logger.debug(f"Input received: {type(X)}")
-            logger.debug(f"Target received: {type(y)}")
+            self.logger.debug(f"Input received: {type(X)}")
+            self.logger.debug(f"Target received: {type(y)}")
 
             # erase all saved gradients
-            logger.debug("Erasing gradients inside the optimizer")
+            self.logger.debug("Erasing gradients inside the optimizer")
             self.optimizer.zero_grad()
 
             # extract batch size from X
-            logger.debug("Extracting batch size")
+            self.logger.debug("Extracting batch size")
             BATCH_SIZE = self._get_batch_size(X)
             total_samples += BATCH_SIZE
 
@@ -195,40 +192,40 @@ class Trainer:
                                                    epoch=kwargs.get('epoch')))
 
             # move batch and targets to device
-            logger.debug("Move X and y to the selected device")
+            self.logger.debug("Move X and y to the selected device")
             X, y = self._move_to_device(X, y)
 
             # forward the input in the correct way:
             # e.g:
             # forward(input)
             # forward(input1,input2,input3) we have to unfold the list or the tuple
-            logger.debug("Forwarding the input")
+            self.logger.debug("Forwarding the input")
             out = self._forward(X)
             Trainer._assert_out_requires_grad(out, train=True)
 
             # TODO: Handle multiple output
             # compute the loss
-            logger.debug("Computing the loss")
+            self.logger.debug("Computing the loss")
             if not out.size() == y.size():
                 raise RuntimeError(f"Size mismatching: (out) received {out.size()}, (y) expected: {y.size()}")
             loss = self.criterion(out, y)
 
             # compute the gradients
-            logger.debug("Computing the gradients")
+            self.logger.debug("Computing the gradients")
             loss.backward()
 
             # update the parameters
-            logger.debug("Updating the parameters")
+            self.logger.debug("Updating the parameters")
             self.optimizer.step()
 
             # update the loss
             # loss.item() contains the loss averaged in the batch
             # * X.size(0) we get the non averaged loss in the batch
-            logger.debug("Updating the epoch loss counter")
+            self.logger.debug("Updating the epoch loss counter")
             epoch_loss += loss.item() * BATCH_SIZE
 
             # compute the metric
-            logger.debug("Computing metric")
+            self.logger.debug("Computing metric")
             if self.metric:
                 computed_metric = Trainer._compute_metric(self.metric, prediction=out, target=y)
                 # add metric computed previously with the one computed now
@@ -249,7 +246,7 @@ class Trainer:
             epoch_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, len(loader))
 
         # return the averaged loss in the whole dataset and metrics
-        logger.debug("Returning loss and metrics of the whole dataset")
+        self.logger.debug("Returning loss and metrics of the whole dataset")
         return self._return_training_state(epoch_loss=epoch_loss, epoch_metric=epoch_metric)
 
     def validation(self, loader: torch.utils.data.DataLoader, **kwargs) -> 'TrainingState':
@@ -313,6 +310,23 @@ class Trainer:
 
     def fit(self, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader,
             epochs: int) -> 'HistoryState':
+        try:
+            return self._fit(train_loader=train_loader, val_loader=val_loader, epochs=epochs)
+        except AssertionError as ae:
+            self.logger.error(ae)
+            raise RuntimeError(f"Error during training! Check the logs at {self.log_dir}")
+        except RuntimeError as re:
+            self.logger.error(re)
+            raise RuntimeError(f"Error during training! Check the logs at {self.log_dir}")
+        except AttributeError as atbe:
+            self.logger.error(atbe)
+            raise RuntimeError(f"Error during training! Check the logs at {self.log_dir}")
+        except ValueError as ve:
+            self.logger.error(ve)
+            raise RuntimeError(f"Error during training! Check the logs at {self.log_dir}")
+
+    def _fit(self, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader,
+             epochs: int) -> 'HistoryState':
         """Define the train-validation loop over all epochs
 
         Args:
@@ -337,7 +351,7 @@ class Trainer:
         start_epoch = self._init_param_for_resuming('last_epoch', default=1)
         last_loss = self._init_param_for_resuming('last_loss', default=None)
         history = self._init_param_for_resuming('last_history', self.HistoryState(list(), list()))
-        logger.debug(f"Is resuming? {resuming}")
+        self.logger.debug(f"Is resuming? {resuming}")
         ###
 
         for epoch in range(start_epoch, epochs + 1):
@@ -351,15 +365,18 @@ class Trainer:
                                                                            epoch=epoch,
                                                                            last_loss=last_loss)
                                           )
-
-            train_state = self.train(train_loader, epoch=epoch)
-            val_state = self.validation(val_loader, epoch=epoch)
+            try:
+                train_state = self.train(train_loader, epoch=epoch)
+                val_state = self.validation(val_loader, epoch=epoch)
+            except AssertionError as ae:
+                self.logger.error(ae)
+                raise ae
 
             history.train.append(train_state)
             history.val.append(val_state)
 
-            # logger.debug(Trainer._return_loss_and_metric_formatted(train_state, train=True))
-            # logger.debug(Trainer._return_loss_and_metric_formatted(val_state, train=False))
+            self.logger.debug(Trainer._return_loss_and_metric_formatted(train_state, train=True))
+            self.logger.debug(Trainer._return_loss_and_metric_formatted(val_state, train=False))
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
@@ -396,6 +413,10 @@ class Trainer:
         Returns:
             TrainingState namedtuple:
                 TrainingState(loss, metric_1, metric_2,...,metric_n)
+
+        Raises:
+            RuntimeError(Invalid field name type) if metric names container is invalid, expected str, List
+
         """
         field_names = 'loss'
         if metric:
@@ -445,6 +466,7 @@ class Trainer:
         """
         if self.metric:
             if isinstance(epoch_metric, Dict):
+                # transform epoch_metric from dictionary to list of values
                 epoch_metric = epoch_metric.values()
 
             if isinstance(epoch_metric, float):
@@ -509,6 +531,9 @@ class Trainer:
 
         Returns:
             output
+
+        Raises:
+            RuntimeError if X is an invalid type, expected: Tensor,List,Tuple
         """
         if isinstance(X, torch.Tensor):
             return self.model.train_step(X) if self.model.training else self.model.val_step(X)
@@ -529,17 +554,18 @@ class Trainer:
             - float value if is Metric
             - list of float if it is a list of Metrics
             - dict of float if it is a dict of Metrics
+
+        Raises:
+            RuntimeError if metric type is invalid
         """
+
         # if isinstance(self.metric, Metric):
         # It's a python design decision to not use GenericAlias
         if isinstance(metric, (Callable, torch.nn.Module)):
-            logger.debug("metric is a function")
             return 0.
         elif isinstance(metric, List):
-            logger.debug("metric is a list")
             return [0. for _ in range(len(metric))]
         elif isinstance(metric, Dict):
-            logger.debug("metric is a dict")
             return {key: 0. for key in metric}
         else:
             raise RuntimeError(
@@ -559,6 +585,10 @@ class Trainer:
             - float if metric is Metric
             - list of float if metric is a List[Metric]
             - dict of float if metric is a Dict[str,Metric]
+
+        Raises:
+            - RuntimeError if metric is invalid type
+            - RuntimeError if prediction and target are not Tensor
         """
         if isinstance(prediction, torch.Tensor) and isinstance(target, torch.Tensor):
             if isinstance(metric, (Callable, torch.nn.Module)):
@@ -581,6 +611,9 @@ class Trainer:
         Args:
             out: output of the train_step or val_step
             train: define if the Trainer is training or validating
+
+        Raises:
+            AssertError if requires_grad != train
         """
         if isinstance(out, torch.Tensor):
             assert out.requires_grad == train
@@ -597,6 +630,9 @@ class Trainer:
 
         Returns:
             Size of a batch
+
+        Raises:
+            RuntimeError if X is an invalid type, expected: Tensor,List,Tuple
         """
         if isinstance(X, torch.Tensor):
             return X.size(0)
@@ -612,6 +648,9 @@ class Trainer:
         Args:
             X: batch input returned by the DataLoader
             y: batch target returned by the DataLoader
+
+        Raises:
+            RuntimeError if X is an invalid type
         """
         if isinstance(X, torch.Tensor):
             X = X.to(self.device)
@@ -664,6 +703,10 @@ class Trainer:
 
         Returns:
             output of the operation
+
+        Raises:
+            RuntimeError if first has wrong type
+            AssertionError if second has wrong type
         """
 
         def __for_list(current: float, computed: float):
@@ -677,35 +720,23 @@ class Trainer:
 
         # if current is float apply simply the operation
         if isinstance(first, (int, float)):
+            assert isinstance(second, (int, float))
             return operation(first, second)
         # if current is a list apply operation element wise
         elif isinstance(first, List):
             # in case second is a int or float, create a list with second repeated as much as len(first)
             if isinstance(second, (int, float)):
                 second = [second] * len(first)
+            assert isinstance(second, List)
             return list(starmap(__for_list, zip(first, second)))
         elif isinstance(first, Dict):
             # create a copy of current dict using other for all keys in order to do element wise operation
             if isinstance(second, (int, float)):
                 second = {key: second for key in first}
+            assert isinstance(second, Dict)
             return dict(starmap(__for_dict, zip(first.items(), second.items())))
         else:
-            raise RuntimeError(type(first), type(second))
-
-
-    #TODO Rwrite save_model, save_experiment, load_experiment
-
-    def save_model(self) -> NoReturn:
-        """ Function for save the parameters and state dictionary of the model
-        """
-        try:
-            dict_to_save = {"param": self.model.__dict__,
-                            "state": self.model.state_dict()
-                            }
-            model_path = self.model_info.model_dir / f"{self.model_info.name}_state_dict.pytorch"
-            torch.save(dict_to_save, model_path)
-        except:
-            logger.error("An error occurred saving the model.")
+            raise RuntimeError(type(first))
 
     def save_experiment(self, last_epoch: int, last_loss: float, current_history: 'HistoryState') -> NoReturn:
         """ A function for saving the Trainer for resuming the training
@@ -717,7 +748,7 @@ class Trainer:
         """
         try:
             checkpoint_path = self.log_dir / f"trainer_{last_epoch}.pytorch"
-            logger.debug(f"Save trainer information at: {checkpoint_path}")
+            self.logger.debug(f"Save trainer information at: {checkpoint_path}")
             what_to_save = {
                 "experiment": self.experiment,
                 "model": self.model,
@@ -725,7 +756,7 @@ class Trainer:
                 "optimizer": self.optimizer,
                 "lr_scheduler": self.lr_scheduler,
                 "metric": self.metric,
-                #"callback": self.callback,
+                "callback": self.callback,
                 "device": self.device,
                 #
                 "epoch": last_epoch,
@@ -735,14 +766,16 @@ class Trainer:
             }
 
             torch.save(what_to_save, checkpoint_path)
-            logger.debug("Information saved.")
+            self.logger.debug("Information saved.")
 
         except AttributeError as ae:
             if "Can't pickle local object":
                 new_message = str(ae) + "\n"
                 new_message += "Insert the unpickable function inside a separate module and import the function."
-                logger.error(new_message)
-                ae = RuntimeError(new_message)
+                self.logger.error(new_message)
+                re = RuntimeError(new_message)
+                raise re
+
             raise ae
 
     @classmethod
@@ -763,14 +796,13 @@ class Trainer:
             raise RuntimeError(f"{checkpoint_path} doesn't exists.")
 
         what_to_load = torch.load(checkpoint_path)
-        logger.debug(what_to_load)
         obj = cls(experiment=what_to_load['experiment'],
                   model=what_to_load['model'],
                   optimizer=what_to_load['optimizer'],
                   criterion=what_to_load['criterion'],
                   metric=what_to_load['metric'],
                   lr_scheduler=what_to_load['lr_scheduler'],
-                  #callback=what_to_load['callback'],
+                  callback=what_to_load['callback'],
                   device=what_to_load['device'])
 
         # for resuming training
@@ -780,3 +812,8 @@ class Trainer:
         obj.last_history = what_to_load['current_history']
 
         return obj
+
+    def __del__(self):
+        for handler in self.logger.handlers:
+            handler.close()
+            self.logger.removeHandler(handler)
