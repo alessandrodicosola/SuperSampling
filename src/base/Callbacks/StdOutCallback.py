@@ -8,9 +8,6 @@ class StdOutCallback(Callback):
         pass
 
     def end_epoch(self, *args, **kwargs):
-        self._logger.debug("end_epoch")
-        self._logger.debug(kwargs)
-
         ### for avoiding circular dependency error ###
         from base.Trainer import Trainer
 

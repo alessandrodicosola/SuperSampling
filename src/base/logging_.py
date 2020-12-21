@@ -2,10 +2,13 @@ import logging
 import sys
 from pathlib import Path
 
+
+########################################################################################################################
 def disable_up_to(level: int):
     logging.disable(level - 10)
 
-def get(name: str, log_dir: Path):
+
+def get(name: str, error_log_dir: Path = None):
     debug_formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
 
     error_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -14,8 +17,9 @@ def get(name: str, log_dir: Path):
     streamHandler.setLevel(logging.DEBUG)
     streamHandler.setFormatter(debug_formatter)
 
-    log_path = log_dir / f"{name}.log"
-    fileHander = logging.FileHandler(log_path)
+    log_path = error_log_dir / f"{name}.error.log" if error_log_dir is not None else None
+    fileHander = logging.FileHandler(log_path, mode="w") if log_path is not None else logging.StreamHandler(
+        sys.stderr)
     fileHander.setLevel(logging.ERROR + logging.CRITICAL)
     fileHander.setFormatter(error_formatter)
 
@@ -25,7 +29,7 @@ def get(name: str, log_dir: Path):
 
     return mylog
 
-####################
+
+########################################################################################################################
 
 disable_up_to(logging.DEBUG)
-
