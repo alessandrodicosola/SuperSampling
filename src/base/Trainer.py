@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import operator
 import re
 
@@ -31,7 +32,7 @@ from base.Callbacks.TensorboardCallback import TensorboardCallback
 from base.hints import Criterion, Metric
 
 # TODO: Callbacks: StdOut,Tensorboard,EarlyStoping,Checkpoint creator
-# TODO: Insert Raise into documentation
+# TODO: Implement generic output stream (stdout, file, web)
 
 ModelInformation = typing.NamedTuple('ModelInformation', [
     ("name", str),
@@ -106,6 +107,8 @@ class Trainer:
 
         # define where log and files events will be saved
         self.log_dir = self.model_info.model_dir / experiment
+        if not self.log_dir.exists():
+            self.log_dir.mkdir(parents=True)
 
         self.callback = self._register_callbacks(callback)
 
@@ -310,6 +313,22 @@ class Trainer:
 
     def fit(self, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader,
             epochs: int) -> 'HistoryState':
+        """Define the train-validation loop over all epochs
+
+                Args:
+                    train_loader: DataLoader for extracting train batches
+                    val_loader: DataLoader for extracting validation batches
+                    epochs: amount of epochs
+
+                Returns:
+                    HistoryState (a namedtuple that depends on TrainingState) which contains two lists:
+                        - train: List[TrainingState]
+                        - val  : List[TrainingState]
+
+                See Also
+                    :class:`~Trainer._register_training_state_type(metric)` for understanding TrainingState
+                    :class:`~Trainer._register_history_state_type()` for understanding HistoryState
+        """
         try:
             return self._fit(train_loader=train_loader, val_loader=val_loader, epochs=epochs)
         except AssertionError as ae:
@@ -349,7 +368,7 @@ class Trainer:
         # after resuming the object Trainer
         resuming = self._init_param_for_resuming('resuming', default=False)
         start_epoch = self._init_param_for_resuming('last_epoch', default=1)
-        last_loss = self._init_param_for_resuming('last_loss', default=None)
+        last_loss = self._init_param_for_resuming('last_loss', default=math.inf)
         history = self._init_param_for_resuming('last_history', self.HistoryState(list(), list()))
         self.logger.debug(f"Is resuming? {resuming}")
         ###
@@ -357,7 +376,6 @@ class Trainer:
         for epoch in range(start_epoch, epochs + 1):
 
             if self.stop:
-                # TODO Save experiment
                 break
 
             if self.callback:
@@ -365,12 +383,8 @@ class Trainer:
                                                                            epoch=epoch,
                                                                            last_loss=last_loss)
                                           )
-            try:
-                train_state = self.train(train_loader, epoch=epoch)
-                val_state = self.validation(val_loader, epoch=epoch)
-            except AssertionError as ae:
-                self.logger.error(ae)
-                raise ae
+            train_state = self.train(train_loader, epoch=epoch)
+            val_state = self.validation(val_loader, epoch=epoch)
 
             history.train.append(train_state)
             history.val.append(val_state)
@@ -686,6 +700,7 @@ class Trainer:
 
         base_kwargs = {
             "stop_fn": self._stop_fn,
+            "save_model_fn": self.save_model,
             "log_dir": self.log_dir,
             "optimizer": self.optimizer,
             "train": self.model.training
@@ -737,6 +752,17 @@ class Trainer:
             return dict(starmap(__for_dict, zip(first.items(), second.items())))
         else:
             raise RuntimeError(type(first))
+
+    def save_model(self, best_loss: float, best_epoch: int):
+        self.logger.debug("Saving model...")
+        checkpoint_path = self.log_dir / "checkpoints"
+
+        if not checkpoint_path.exists():
+            checkpoint_path.mkdir(parents=True)
+
+        checkpoint_path /= f"{self.model_info.name}_{best_epoch}_{best_loss:.2f}.pytorch"
+        torch.save(self.model, checkpoint_path)
+        self.logger.debug("Saving complete")
 
     def save_experiment(self, last_epoch: int, last_loss: float, current_history: 'HistoryState') -> NoReturn:
         """ A function for saving the Trainer for resuming the training
