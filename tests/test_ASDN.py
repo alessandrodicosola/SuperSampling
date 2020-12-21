@@ -1,55 +1,47 @@
 from unittest import TestCase, skip
 
+from torch.utils.data import DataLoader
+
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 from models.ASDN import ASDN
 
 import torch
 import torch.nn as nn
 
+from tests.pytorch_test import PyTorchTest
+from tests.util_for_testing import RandomTensorDataset
 
 
-
-class TestASDN(TestCase):
-    def test_forward(self):
-        from torch.utils.data import DataLoader, Dataset
-
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        print("Current device: ", device)
-
-
-        scale = 1.3674
-        lfr = LaplacianFrequencyRepresentation(1, 2, 11)
-        leveliminus1, leveli = lfr.get_for(scale=scale)
-
-        class RandomTensorDataset(Dataset):
-            def __init__(self):
-                self.patch = (3, 48, 48)
-                self.len = 16
-
-            def __getitem__(self, index):
-                return torch.rand(*self.patch)
-
-            def __len__(self):
-                return self.len
+@skip("Done and it's working. Skipped because it's expensive.")
+class TestASDN(PyTorchTest):
+    def before(self):
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        print("Current device: ", self.device)
 
         # batch size 8 use 5.5GB
-        loader = DataLoader(RandomTensorDataset(), batch_size=8)
+        self.loader = DataLoader(RandomTensorDataset(), batch_size=8)
+        self.asdn = ASDN(3, lfr=LaplacianFrequencyRepresentation(1, 2, 11)).to(self.device)
 
+    def after(self):
+        self.device = None
+        self.loader = None
+        self.asdn = None
 
+    def test_forward(self):
+        scale = 1.3674
+
+        leveliminus1, leveli = self.lfr.get_for(scale=scale)
 
         start = torch.cuda.Event(enable_timing=True)
         end = torch.cuda.Event(enable_timing=True)
 
-        asdn = ASDN(3, lfr=lfr).to(device)
+        self.asdn.train()
 
-        asdn.train()
-
-        for index, batch in enumerate(loader):
-
-            batch = batch.to(device)
+        for index, batch in enumerate(self.loader):
+            batch = batch.to(self.device)
 
             start.record()
-            outputi = asdn(batch, irb_index=leveli.index)
+            outputi = self.asdn(batch, irb_index=leveli.index)
             end.record()
 
             torch.cuda.synchronize()

@@ -8,69 +8,102 @@ from torch.optim import Adam, Optimizer
 from torch.utils.data import DataLoader, Dataset
 
 from base import BaseModule
+from base.Callbacks.EarlyStoppingCallback import EarlyStoppingCallback
 from base.Trainer import Trainer
 from base.hints import Criterion
 
 from datasets.ASDNDataset import ASDNDataset, collate_fn
 from models.ASDN import ASDN
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
+from tests.pytorch_test import PyTorchTest
 from tests.util_for_testing import RandomDataset, NetworkOneInput, NetworkTwoInputs
+
 
 # TODO Refactor test
 
-class TestForward(TestCase):
+class TestForwardASDN(PyTorchTest):
+    def before(self):
+        LFR = LaplacianFrequencyRepresentation(1, 2, 11)
+        COLLATE_FN = partial(collate_fn, lfr=self.LFR)
+
+        VAL_DATASET = ASDNDataset("DIV2K_valid_HR", 24, LFR)
+        self.VAL_DATALOADER = DataLoader(VAL_DATASET, 64, False, num_workers=4, collate_fn=COLLATE_FN)
+
+        TRAIN_DATASET = ASDNDataset("DIV2K_train_HR", 24, LFR)
+        self.TRAIN_DATALOADER = DataLoader(TRAIN_DATASET, 32, True, num_workers=4, collate_fn=COLLATE_FN)
+
+        DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        ASDN_ = ASDN(3, LFR, n_dab=3, n_intra_layers=3, out_compressed_channels=32, out_channels_dab=8,
+                     intra_layer_output_features=8).to(self.DEVICE)
+        ADAM = Adam(ASDN_.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
+        self.TRAINER = Trainer("test", ASDN_, ADAM, MSELoss().to(DEVICE), device=DEVICE)
+
+    def after(self):
+        self.VAL_DATALOADER = None
+        self.TRAIN_DATALOADER = None
+        self.TRAINER = None
 
     @unittest.skip("EXPENSIVE")
-    def test_fit_with_ASDN(self):
-        lfr = LaplacianFrequencyRepresentation(1, 2, 11)
-        collate_fn_lfr = partial(collate_fn, lfr=lfr)
+    def test_forward(self):
+        self.TRAINER.fit(self.TRAIN_DATALOADER, self.VAL_DATALOADER, 1)
 
-        val_dataset = ASDNDataset("DIV2K_valid_HR", 24, lfr)
-        val_loader = DataLoader(val_dataset, 64, False, num_workers=4, collate_fn=collate_fn_lfr)
-        train_dataset = ASDNDataset("DIV2K_train_HR", 24, lfr)
-        train_loader = DataLoader(train_dataset, 32, True, num_workers=4, collate_fn=collate_fn_lfr)
 
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        asdn = ASDN(3, lfr, n_dab=3, n_intra_layers=3, out_compressed_channels=32, out_channels_dab=8,
-                    intra_layer_output_features=8).to(device)
-
-        adam = Adam(asdn.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
-        trainer = Trainer("test", asdn, adam, MSELoss().to(device), device=device)
-        trainer.fit(train_loader, val_loader, 1)
-
-    def test_fit_one_input(self):
+class TestForwardBaseModuleOneInput(PyTorchTest):
+    def before(self):
         device = torch.device('cpu')
         input_size = (3, 24, 24)
         dataset = RandomDataset(1, input_size, input_size)
-        dataloader = DataLoader(dataset, batch_size=32)
+        self.dataloader = DataLoader(dataset, batch_size=32)
         loss = MSELoss().to(device)
         model = NetworkOneInput(input_size, 32).to(device)
         adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
-        trainer = Trainer("test", model, adam, loss, device=device)
-        trainer.fit(dataloader, dataloader, 5)
+        self.trainer = Trainer("test", model, adam, loss, device=device)
 
-    def test_fit_two_inputs(self):
-        def collate_fn(batch):
-            inputs, target = zip(*batch)
-            input1, input2 = zip(*inputs)
-            return (torch.stack(input1, dim=0), torch.stack(input2, dim=0)), torch.stack(target, dim=0)
+    def after(self):
+        self.dataloader = None
+        self.trainer = None
 
+    def test_forward(self):
+        self.trainer.fit(self.dataloader, self.dataloader, 5)
+
+
+class TestForwardBaseModuleTwoInputs(PyTorchTest):
+
+    def collate_fn(self, batch):
+        inputs, target = zip(*batch)
+        input1, input2 = zip(*inputs)
+        return (torch.stack(input1, dim=0), torch.stack(input2, dim=0)), torch.stack(target, dim=0)
+
+    def before(self):
         device = torch.device('cpu')
         input_size = (3, 24, 24)
         dataset = RandomDataset(2, input_size, input_size)
-        dataloader = DataLoader(dataset, batch_size=32, collate_fn=collate_fn)
+        self.dataloader = DataLoader(dataset, batch_size=32, collate_fn=self.collate_fn)
         loss = MSELoss().to(device)
         model = NetworkTwoInputs(input_size, 32).to(device)
         adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
-        trainer = Trainer("test", model, adam, loss, device=device)
-        trainer.fit(dataloader, dataloader, 5)
+        self.trainer = Trainer("test", model, adam, loss, device=device)
+
+    def after(self):
+        self.dataloader = None
+        self.trainer = None
+
+    def test_forward(self):
+        self.trainer.fit(self.dataloader, self.dataloader, 5)
 
 
-class TestMetric(unittest.TestCase):
+class TestMetric(PyTorchTest):
+    def before(self):
+        pass
+
+    def after(self):
+        pass
+
+    def metric1(t1: torch.Tensor, t2: torch.Tensor):
+        return ((t1 - t2) ** 2).sum().item()
+
     def test_single_metric(self):
-        def metric1(t1: torch.Tensor, t2: torch.Tensor):
-            return ((t1 - t2) ** 2).sum().item()
-
         device = torch.device('cpu')
         input_size = (3, 24, 24)
         dataset = RandomDataset(1, input_size, input_size)
@@ -117,7 +150,13 @@ class TestMetric(unittest.TestCase):
         trainer.fit(dataloader, dataloader, 5)
 
 
-class Test__execute_operation(TestCase):
+class Test__execute_operation(PyTorchTest):
+    def before(self):
+        pass
+
+    def after(self):
+        pass
+
     def test__execute_operation_int(self):
         self.assertTrue(Trainer._execute_operation(operator.add, 1, 2), 3)
         self.assertAlmostEqual(Trainer._execute_operation(operator.__truediv__, 1, 2), 0.5)
@@ -168,7 +207,12 @@ def metric2(t1: torch.Tensor, t2: torch.Tensor):
     return ((t1 - t2) ** 2).sum().item()
 
 
-class Test_save_load_Trainer(TestCase):
+class Test_save_load_Trainer(PyTorchTest):
+    def before(self):
+        pass
+
+    def after(self):
+        pass
 
     def test_save_experiment_raise(self):
         def metric1(t1: torch.Tensor, t2: torch.Tensor):
@@ -204,7 +248,7 @@ class Test_save_load_Trainer(TestCase):
         except:
             self.fail("Error occurred")
 
-    # TODO Heavy testing
+    # TODO: Heavy testing
     def test_load_experiment(self):
         self.maxDiff = None
         torch.manual_seed(1)
@@ -253,6 +297,35 @@ class Test_save_load_Trainer(TestCase):
 
         for state in history.train:
             print(state, end="\n")
+
+
+class TestTrainer_Checkpoint(PyTorchTest):
+
+    def before(self):
+        metric_dict = {"my awesome metric1": metric1, "the less interesting metric2": metric2}
+        self.epochs = 25
+
+        device = torch.device('cpu')
+        input_size = (3, 24, 24)
+        dataset = RandomDataset(1, input_size, input_size)
+        self.dataloader = DataLoader(dataset, batch_size=32)
+        loss = MSELoss().to(device)
+        model = NetworkOneInput(input_size, 32).to(device)
+        adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(adam, 10)
+        self.trainer = Trainer("test", model, adam, loss, metric=metric_dict, lr_scheduler=lr_scheduler, device=device,
+                          callback=EarlyStoppingCallback(patience=5))
+
+    def after(self):
+        self.dataloader = None
+        self.trainer = None
+
+
+    def test_EarlyStopping(self):
+        history = self.trainer.fit(self.dataloader, self.dataloader, self.epochs)
+        # after running once the early stopping happens at 11
+        self.assertTrue(len(history.train) == 11)
+        self.assertTrue(len(history.val) == 11)
 
 
 if __name__ == "__main__":

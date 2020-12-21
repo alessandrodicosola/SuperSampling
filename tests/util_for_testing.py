@@ -65,6 +65,7 @@ class NetworkTwoInputs(BaseModule):
     def test_step(self, input1, input2):
         return self(input1, input2)
 
+
 class BaseModuleTwoOutput(BaseModule):
     def forward(self, input):
         # do some computation otherwise requires_grad is not set
@@ -81,3 +82,15 @@ class BaseModuleTwoOutput(BaseModule):
     @torch.no_grad()
     def test_step(self, input):
         return self(input)
+
+
+class RandomTensorDataset(Dataset):
+    def __init__(self):
+        self.patch = (3, 48, 48)
+        self.len = 16
+
+    def __getitem__(self, index):
+        return torch.rand(*self.patch)
+
+    def __len__(self):
+        return self.len

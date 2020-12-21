@@ -6,19 +6,33 @@ from torch.utils.data import DataLoader
 import torch
 from datasets.ASDNDataset import ASDNDataset, collate_fn, NormalizeInverse
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
+from tests.pytorch_test import PyTorchTest
 
+@skip("Done and it's working. Skipped because it's expensive.")
+class TestASDNDataset(PyTorchTest):
+    def before(self):
+        self.PATCH_SIZE = 48
+        self.LFR = LaplacianFrequencyRepresentation(1, 2, 11)
+        self.DATASET = ASDNDataset("DIV2K_valid_HR", patch_size=self.PATCH_SIZE, lfr=self.LFR)
+        self.COLLATE_FN = partial(collate_fn, lfr=self.LFR)
 
-class TestASDNDataset(TestCase):
+        NUM_WORKERS = 4
+        self.DATALOADER = DataLoader(self.dataset, num_workers=NUM_WORKERS, batch_size=self.BATCH_SIZE, pin_memory=True,
+                                     collate_fn=self.COLLATE_FN)
+        self.denormalize = NormalizeInverse(self.DATASET.mean, self.DATASET.std)
+
+    def after(self):
+        self.PATCH_SIZE = None
+        self.LFR = None
+        self.DATASET = None
+        self.COLLATE_FN = None
+        self.DATALOADER = None
+
     def test_get_collate_fn(self):
-        PATCH_SIZE = 48
-        LFR = LaplacianFrequencyRepresentation(1, 2, 11)
-        DATASET = ASDNDataset("DIV2K_valid_HR", patch_size=PATCH_SIZE, lfr=LFR)
 
-        COLLATE_FN = partial(collate_fn, lfr=LFR)
+        batch = next(iter(self.DATASET))
 
-        batch = next(iter(DATASET))
-
-        result = COLLATE_FN([batch])
+        result = self.COLLATE_FN([batch])
 
         assert isinstance(result, Tuple), f"expected: Tuple. returned: {type(result)}"
         assert len(result) == 2, f"expected: 3, returned: {len(result)}"
@@ -31,30 +45,11 @@ class TestASDNDataset(TestCase):
         import matplotlib.pyplot as plt
         from torchvision.utils import make_grid
 
-        START, END, COUNT = 1, 2, 11
-
-        PATCH_SIZE = 48
-
-        BATCH_SIZE = 8
-
-        NUM_WORKERS = 4
-
-        LFR = LaplacianFrequencyRepresentation(START, END, COUNT)
-
-        dataset = ASDNDataset("DIV2K_valid_HR", patch_size=PATCH_SIZE, lfr=LFR)
-
-        COLLATE_FN = partial(collate_fn, lfr=LFR)
-
-        dataloader = DataLoader(dataset, num_workers=NUM_WORKERS, batch_size=BATCH_SIZE, pin_memory=True,
-                                collate_fn=COLLATE_FN)
-
-        denormalize = NormalizeInverse(dataset.mean, dataset.std)
-
         for index, ((scale, low_res_batch_i_minus_1, low_res_batch_i), pyramid_i) in enumerate(
-                tqdm(dataloader)):
+                tqdm(self.DATALOADER)):
             if index == 0:
-                low_res_batch_i = denormalize(low_res_batch_i)
-                pyramid_i = denormalize(pyramid_i)
+                low_res_batch_i = self.denormalize(low_res_batch_i)
+                pyramid_i = self.denormalize(pyramid_i)
 
                 MAX_IMAGES = 16
                 N_ROW = 4
