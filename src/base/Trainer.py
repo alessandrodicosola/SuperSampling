@@ -70,6 +70,13 @@ class Trainer:
         # set the experiment name
         self.experiment = experiment
 
+        # define where log and files events will be saved
+        self.log_dir = self.model_info.model_dir / experiment
+        if not self.log_dir.exists():
+            self.log_dir.mkdir(parents=True)
+
+        self.logger = base.logging_.get(__name__)
+
         if device is None:
             device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
             # if device is None model and criterion are not in the same device
@@ -105,15 +112,9 @@ class Trainer:
         # flag used for stopping the training
         self.stop = False
 
-        # define where log and files events will be saved
-        self.log_dir = self.model_info.model_dir / experiment
-        if not self.log_dir.exists():
-            self.log_dir.mkdir(parents=True)
-
         self.callback = self._register_callbacks(callback)
 
-        self.logger = base.logging_.get("Trainer", self.log_dir)
-        self.logger.debug(f"Init trainer class for {self.experiment} with {self.model_info.name}")
+        self.logger.debug(f"Init Trainer: experiment={self.experiment} model_name={self.model_info.name}")
 
     def _register_model_information(model: torch.nn.Module):
         """
@@ -176,6 +177,8 @@ class Trainer:
         epoch_metric = Trainer._init_metric_obj(self.metric) if self.metric else None
 
         for index_batch, (X, y) in enumerate(tqdm(loader, total=len(loader), unit="batch", leave=False)):
+            index_batch = index_batch + 1
+
             self.logger.debug(f"Input received: {type(X)}")
             self.logger.debug(f"Target received: {type(y)}")
 
@@ -190,9 +193,10 @@ class Trainer:
 
             if self.callback:
                 self.callback.start_batch(
-                    self._create_args_for_callback(batch_index=index_batch,
-                                                   batch_size=BATCH_SIZE,
-                                                   epoch=kwargs.get('epoch')))
+                    **self._create_args_for_callback(batch_index=index_batch,
+                                                     batch_size=BATCH_SIZE,
+                                                     batch_num=len(loader),
+                                                     current_epoch=kwargs.get('epoch')))
 
             # move batch and targets to device
             self.logger.debug("Move X and y to the selected device")
@@ -236,10 +240,11 @@ class Trainer:
 
             if self.callback:
                 self.callback.end_batch(
-                    self._create_args_for_callback(batch_index=index_batch,
-                                                   batch_size=BATCH_SIZE,
-                                                   epoch=kwargs.get('epoch'),
-                                                   batch_metrics=self._return_training_state(epoch_loss, epoch_metric)))
+                    **self._create_args_for_callback(batch_index=index_batch,
+                                                     batch_size=BATCH_SIZE,
+                                                     batch_num=len(loader),
+                                                     current_epoch=kwargs.get('epoch'),
+                                                     train_state=self._return_training_state(epoch_loss, epoch_metric)))
 
         # average the loss
         epoch_loss = epoch_loss / total_samples
@@ -273,6 +278,8 @@ class Trainer:
         epoch_metric = Trainer._init_metric_obj(self.metric) if self.metric else None
 
         for index_batch, (X, y) in enumerate(tqdm(loader, total=len(loader), unit="batch", leave=False)):
+            index_batch = index_batch + 1
+
             BATCH_SIZE = self._get_batch_size(X)
             total_samples += BATCH_SIZE
 
@@ -280,7 +287,8 @@ class Trainer:
                 self.callback.start_batch(
                     **self._create_args_for_callback(batch_index=index_batch,
                                                      batch_size=BATCH_SIZE,
-                                                     epoch=kwargs.get('epoch')))
+                                                     batch_num=len(loader),
+                                                     current_epoch=kwargs.get('epoch')))
 
             X, y = self._move_to_device(X, y)
 
@@ -300,9 +308,10 @@ class Trainer:
                 self.callback.end_batch(
                     **self._create_args_for_callback(batch_index=index_batch,
                                                      batch_size=BATCH_SIZE,
-                                                     epoch=kwargs.get('epoch'),
-                                                     batch_metrics=self._return_training_state(epoch_loss,
-                                                                                               epoch_metric)))
+                                                     batch_num=len(loader),
+                                                     current_epoch=kwargs.get('epoch'),
+                                                     val_state=self._return_training_state(epoch_loss,
+                                                                                           epoch_metric)))
 
         epoch_loss = epoch_loss / total_samples
 
@@ -332,16 +341,12 @@ class Trainer:
         try:
             return self._fit(train_loader=train_loader, val_loader=val_loader, epochs=epochs)
         except AssertionError as ae:
-            self.logger.error(ae)
             raise RuntimeError(f"Error during training! Check the logs at {self.log_dir}")
         except RuntimeError as re:
-            self.logger.error(re)
             raise RuntimeError(f"Error during training! Check the logs at {self.log_dir}")
         except AttributeError as atbe:
-            self.logger.error(atbe)
             raise RuntimeError(f"Error during training! Check the logs at {self.log_dir}")
         except ValueError as ve:
-            self.logger.error(ve)
             raise RuntimeError(f"Error during training! Check the logs at {self.log_dir}")
 
     def _fit(self, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader,
@@ -364,8 +369,8 @@ class Trainer:
         """
 
         # RESUMING ATTRIBUTES
-        # since the training is stopped at the beginning of the loop the last_epoch is indeed the new epoch to do
-        # after resuming the object Trainer
+        # since the training is stopped at the beginning of the loop the last_epoch is indeed the new epoch for resuming the object Trainer
+
         resuming = self._init_param_for_resuming('resuming', default=False)
         start_epoch = self._init_param_for_resuming('last_epoch', default=1)
         last_loss = self._init_param_for_resuming('last_loss', default=math.inf)
@@ -795,14 +800,13 @@ class Trainer:
             self.logger.debug("Information saved.")
 
         except AttributeError as ae:
-            if "Can't pickle local object":
+            if "Can't pickle local object" in ae:
                 new_message = str(ae) + "\n"
                 new_message += "Insert the unpickable function inside a separate module and import the function."
-                self.logger.error(new_message)
                 re = RuntimeError(new_message)
                 raise re
-
-            raise ae
+            else:
+                raise ae
 
     @classmethod
     def load_experiment(cls, base_model_dir: str, experiment: str, last_epoch: int):
