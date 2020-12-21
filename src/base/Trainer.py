@@ -798,9 +798,8 @@ class Trainer:
 
             torch.save(what_to_save, checkpoint_path)
             self.logger.debug("Information saved.")
-
         except AttributeError as ae:
-            if "Can't pickle local object" in ae:
+            if "Can't pickle local object" in str(ae):
                 new_message = str(ae) + "\n"
                 new_message += "Insert the unpickable function inside a separate module and import the function."
                 re = RuntimeError(new_message)

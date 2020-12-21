@@ -307,25 +307,24 @@ class TestTrainer_Checkpoint(PyTorchTest):
 
         device = torch.device('cpu')
         input_size = (3, 24, 24)
-        dataset = RandomDataset(1, input_size, input_size)
+        dataset = RandomDataset(1, input_size, input_size, size_dataset=128)
         self.dataloader = DataLoader(dataset, batch_size=32)
         loss = MSELoss().to(device)
         model = NetworkOneInput(input_size, 32).to(device)
         adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(adam, 10)
         self.trainer = Trainer("test", model, adam, loss, metric=metric_dict, lr_scheduler=lr_scheduler, device=device,
-                          callback=EarlyStoppingCallback(patience=5))
+                               callback=EarlyStoppingCallback(patience=10))
 
     def after(self):
         self.dataloader = None
         self.trainer = None
 
-
     def test_EarlyStopping(self):
         history = self.trainer.fit(self.dataloader, self.dataloader, self.epochs)
-        # after running once the early stopping happens at 11
-        self.assertTrue(len(history.train) == 11)
-        self.assertTrue(len(history.val) == 11)
+        # after running once the early stopping happens at 25
+        self.assertTrue(len(history.train) == 25)
+        self.assertTrue(len(history.val) == 25)
 
 
 if __name__ == "__main__":

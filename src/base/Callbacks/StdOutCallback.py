@@ -8,7 +8,7 @@ class StdOutCallback(Callback):
         pass
 
     def end_epoch(self, *args, **kwargs):
-        ### for avoiding circular dependency error ###
+        # for avoiding circular dependency error #
         from base.Trainer import Trainer
 
         train_state = kwargs.get('train_state')

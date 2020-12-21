@@ -56,7 +56,8 @@ class Callback(ABC):
         Keyword Args:
             batch_index
             batch_size
-            epoch
+            batch_num
+            current_epoch
 
             # common args
             stop_fn: Pointer to the function for stopping the training
@@ -74,8 +75,9 @@ class Callback(ABC):
         Keyword Args:
             batch_index
             batch_size
-            epoch
-            batch_metrics (namedtuple with loss and metrics)
+            batch_num
+            current_epoch
+            train_state | val_state ('TrainingState' namedtuple with loss and metrics)
 
             # common args
             stop_fn: Pointer to the function for stopping the training
