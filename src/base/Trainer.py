@@ -251,7 +251,8 @@ class Trainer:
 
         # average the metric
         if self.metric:
-            epoch_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, len(loader))
+            # TODO: Differentiate between mean and sum: sum -> metric / total_samples, mean -> metric / num_batches. The latter is less precise
+            epoch_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
 
         # return the averaged loss in the whole dataset and metrics
         self.logger.debug("Returning loss and metrics of the whole dataset")
@@ -316,7 +317,7 @@ class Trainer:
         epoch_loss = epoch_loss / total_samples
 
         if self.metric:
-            epoch_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, len(loader))
+            epoch_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
 
         return self._return_training_state(epoch_loss=epoch_loss, epoch_metric=epoch_metric)
 
@@ -341,13 +342,13 @@ class Trainer:
         try:
             return self._fit(train_loader=train_loader, val_loader=val_loader, epochs=epochs)
         except AssertionError as ae:
-            raise RuntimeError(f"Error during training! Check the logs at {self.log_dir}")
+            raise ae
         except RuntimeError as re:
-            raise RuntimeError(f"Error during training! Check the logs at {self.log_dir}")
+            raise re
         except AttributeError as atbe:
-            raise RuntimeError(f"Error during training! Check the logs at {self.log_dir}")
+            raise atbe
         except ValueError as ve:
-            raise RuntimeError(f"Error during training! Check the logs at {self.log_dir}")
+            raise ve
 
     def _fit(self, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader,
              epochs: int) -> 'HistoryState':
@@ -740,7 +741,7 @@ class Trainer:
 
         # if current is float apply simply the operation
         if isinstance(first, (int, float)):
-            assert isinstance(second, (int, float))
+            assert isinstance(second, (int, float)), "Maybe you have to call .item()"
             return operation(first, second)
         # if current is a list apply operation element wise
         elif isinstance(first, List):
