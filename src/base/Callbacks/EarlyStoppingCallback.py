@@ -9,7 +9,8 @@ class EarlyStoppingCallback(Callback):
         if self.capture:
             self.best_loss = kwargs.get('last_loss')
             self.best_epoch = kwargs.get('epoch')
-            self._logger.debug("Received from Trainer best_loss: %s and best_epoch: %s", self.best_loss, self.best_epoch)
+            self._logger.debug("Received from Trainer best_loss: %s and best_epoch: %s", self.best_loss,
+                               self.best_epoch)
             self.capture = False
 
     def end_epoch(self, *args, **kwargs):
@@ -20,7 +21,7 @@ class EarlyStoppingCallback(Callback):
         if val_loss <= self.best_loss + self.eps:
 
             self._logger.debug("loss improved from %s to %s : %s -> %s",
-                              self.best_epoch, epoch, self.best_loss, val_loss)
+                               self.best_epoch, epoch, self.best_loss, val_loss)
             # reset patience counter
             self.counter_patience = self.patience
 
@@ -29,7 +30,7 @@ class EarlyStoppingCallback(Callback):
 
             save_model_fn = kwargs.get('save_model_fn')
             # call Trainer.save_model(loss,epoch)
-            save_model_fn(val_loss, epoch)
+            save_model_fn(f"{epoch}_{val_loss:.2f}")
         else:
             self.counter_patience -= 1
             self._logger.debug("val_loss not improving.")

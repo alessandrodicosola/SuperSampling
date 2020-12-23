@@ -33,7 +33,7 @@ class TensorboardCallback(Callback):
         self._logger.debug("%s  %s    %s", kwargs.get('batch_index'), kwargs.get('current_epoch'),
                            kwargs.get('batch_num'))
 
-        global_step = kwargs.get('batch_index') + (kwargs.get('current_epoch') * kwargs.get('batch_num'))
+        global_step = kwargs.get('batch_index') + (kwargs.get('current_epoch') * kwargs.get('batch_nums'))
 
         train_state = kwargs.get('train_state', None)
         val_state = kwargs.get('val_state', None)

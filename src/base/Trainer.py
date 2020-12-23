@@ -195,7 +195,7 @@ class Trainer:
                 self.callback.start_batch(
                     **self._create_args_for_callback(batch_index=index_batch,
                                                      batch_size=BATCH_SIZE,
-                                                     batch_num=len(loader),
+                                                     batch_nums=len(loader),
                                                      current_epoch=kwargs.get('epoch')))
 
             # move batch and targets to device
@@ -242,7 +242,7 @@ class Trainer:
                 self.callback.end_batch(
                     **self._create_args_for_callback(batch_index=index_batch,
                                                      batch_size=BATCH_SIZE,
-                                                     batch_num=len(loader),
+                                                     batch_nums=len(loader),
                                                      current_epoch=kwargs.get('epoch'),
                                                      train_state=self._return_training_state(epoch_loss, epoch_metric)))
 
@@ -288,7 +288,7 @@ class Trainer:
                 self.callback.start_batch(
                     **self._create_args_for_callback(batch_index=index_batch,
                                                      batch_size=BATCH_SIZE,
-                                                     batch_num=len(loader),
+                                                     batch_nums=len(loader),
                                                      current_epoch=kwargs.get('epoch')))
 
             X, y = self._move_to_device(X, y)
@@ -309,7 +309,7 @@ class Trainer:
                 self.callback.end_batch(
                     **self._create_args_for_callback(batch_index=index_batch,
                                                      batch_size=BATCH_SIZE,
-                                                     batch_num=len(loader),
+                                                     batch_nums=len(loader),
                                                      current_epoch=kwargs.get('epoch'),
                                                      val_state=self._return_training_state(epoch_loss,
                                                                                            epoch_metric)))
@@ -759,15 +759,16 @@ class Trainer:
         else:
             raise RuntimeError(type(first))
 
-    def save_model(self, best_loss: float, best_epoch: int):
-        self.logger.debug("Saving model...")
+    def save_model(self, comment: str):
         checkpoint_path = self.log_dir / "checkpoints"
+        self.logger.debug(f"Saving model at {checkpoint_path}")
 
         if not checkpoint_path.exists():
             checkpoint_path.mkdir(parents=True)
 
-        checkpoint_path /= f"{self.model_info.name}_{best_epoch}_{best_loss:.2f}.pytorch"
+        checkpoint_path /= f"{self.model_info.name}_{comment}.pytorch"
         torch.save(self.model, checkpoint_path)
+
         self.logger.debug("Saving complete")
 
     def save_experiment(self, last_epoch: int, last_loss: float, current_history: 'HistoryState') -> NoReturn:
