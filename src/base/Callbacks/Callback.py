@@ -85,6 +85,10 @@ class Callback(ABC):
             optimizer: torch.optim.Optimizer used
             train: True: model in training mode
 
+            # for testing during training
+            in_ : input batch as Tensor
+            out : output batch as Tensor
+
         """
         raise NotImplementedError
 
@@ -111,10 +115,10 @@ class ListCallback(Callback):
         for callback in self.callbacks:
             callback.end_batch(*args, **kwargs)
 
-    def add_callback(self, callback : Callback):
+    def add_callback(self, callback: Callback):
         self.callbacks.append(callback)
 
-    def remove_callback(self, callback : Callback):
+    def remove_callback(self, callback: Callback):
         self.callbacks.remove(callback)
 
     @classmethod

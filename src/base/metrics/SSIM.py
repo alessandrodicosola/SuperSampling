@@ -103,6 +103,9 @@ class SSIM(torch.nn.Module):
             https://github.com/photosynthesis-team/piq/blob/5f907063f5abe357173a5bed1126b07d46f1b6ac/piq/ssim.py#L350
 
         """
+        prediction = prediction.detach()
+        target = target.detach()
+
         if prediction.size() != target.size():
             raise RuntimeError("Size mismatching between prediction and target.")
 
@@ -147,7 +150,6 @@ class SSIM(torch.nn.Module):
         """
         self.gaussian_kernel = self.gaussian_kernel.repeat(channels, 1, 1, 1)
 
-
         mu_x = torch.nn.functional.conv2d(input=prediction, weight=self.gaussian_kernel, stride=1, padding=0,
                                           groups=channels)
 
@@ -156,7 +158,8 @@ class SSIM(torch.nn.Module):
         mu_x_sq = mu_x.pow(2)
         mu_y_sq = mu_y.pow(2)
         mu_xy = mu_x * mu_y
-
+        del mu_x
+        del mu_y
         sigma_x_sq = torch.nn.functional.conv2d(input=prediction * prediction, weight=self.gaussian_kernel, stride=1,
                                                 padding=0,
                                                 groups=channels) - mu_x_sq
@@ -164,11 +167,18 @@ class SSIM(torch.nn.Module):
                                                 groups=channels) - mu_y_sq
         sigma_xy = torch.nn.functional.conv2d(input=prediction * target, weight=self.gaussian_kernel, stride=1,
                                               padding=0, groups=channels) - mu_xy
+        luminance = self._luminance(mu_xy, mu_x_sq, mu_y_sq)
+
+        del mu_x_sq
+        del mu_y_sq
+        del mu_xy
+
+        contrast = self._contrast(sigma_xy, sigma_x_sq, sigma_y_sq)
+
         # with C3 = C2 / 1 and alpha,beta,gamma equals to 1 SSIM contains only luminance and contrast
         # compute mean over spatial dimensions
 
-        return (self._luminance(mu_xy, mu_x_sq, mu_y_sq) * self._contrast(sigma_xy, sigma_x_sq, sigma_y_sq)).mean(
-            dim=[-1, -2])
+        return (luminance * contrast).mean(dim=[-1, -2])
 
     def _luminance(self, mu_xy, mu_x_sq, mu_y_sq):
         """ Inside the paper they wrote mu_x + mu_y in the matlab implementation there is mu_xy"""

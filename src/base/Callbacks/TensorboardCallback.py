@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List, Tuple
 
 import torch.utils.tensorboard
 import torchvision
@@ -58,11 +59,23 @@ class TensorboardCallback(Callback):
                 self.writer.add_scalar(f"Batches/Val/{key}", value, global_step)
 
         if self.print_images:
+            # TODO Check this
             if kwargs.get('current_epoch') % self.print_images_frequency == 0 and 'val_state' in kwargs:
-                grid_in = torchvision.utils.make_grid(self.get_tensor(kwargs.get('in_')), nrow=3)
-                grid_out = torchvision.utils.make_grid(self.get_tensor(kwargs.get('out')), nrow=3)
+                X = kwargs.get("in_")
+                if isinstance(X, (List, Tuple)):
+                    for index, input in enumerate(filter(lambda elem: isinstance(elem, Tensor), X)):
+                        grid_in = torchvision.utils.make_grid(self.get_tensor(input), nrow=4)
+                        self.writer.add_image(f'Epoch/Images/Input{index}', grid_in, kwargs.get('current_epoch'))
+                    del X
+                elif isinstance(X, Tensor):
+                    grid_in = torchvision.utils.make_grid(self.get_tensor(X), nrow=4)
+                    self.writer.add_image(f'Epoch/Images/Input', grid_in, kwargs.get('current_epoch'))
+                    del X
+                else:
+                    raise RuntimeError("Unknown type.")
 
-                self.writer.add_image('Epoch/Images/Input', grid_in, kwargs.get('current_epoch'))
+                grid_out = torchvision.utils.make_grid(self.get_tensor(kwargs.get('out')), nrow=4)
+
                 self.writer.add_image('Epoch/Images/Output', grid_out, kwargs.get('current_epoch'))
 
     def __init__(self, log_dir: str, print_images=False, print_images_frequency: int = 10, denormalize_fn=None):
@@ -70,7 +83,7 @@ class TensorboardCallback(Callback):
         self.log_dir = log_dir + "/" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S_%f")
         self.writer = None
 
-        self.denormalize_fn = None
+        self.denormalize_fn = denormalize_fn
         self.print_images = print_images
         self.print_images_frequency = print_images_frequency
 
