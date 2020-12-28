@@ -130,7 +130,7 @@ class Trainer:
 
     def _register_callbacks(self, optional_callback: Union[Callback, List[Callback]]):
         default_callbacks = [
-            StdOutCallback()
+            StdOutCallback(print_batch=False)
         ]
 
         if optional_callback:
@@ -234,23 +234,24 @@ class Trainer:
             self.logger.debug("Computing metric")
             if self.metric:
                 computed_metric = Trainer._compute_metric(self.metric, prediction=out, target=y)
-                # add metric computed previously with the one computed now
+                computed_metric = Trainer._execute_operation(operator.mul, computed_metric, BATCH_SIZE)
                 epoch_metric = Trainer._execute_operation(operator.add, epoch_metric, computed_metric)
 
             if self.callback:
+                train_loss = epoch_loss / total_samples
+                train_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
                 self.callback.end_batch(
                     **self._create_args_for_callback(batch_index=index_batch,
                                                      batch_size=BATCH_SIZE,
                                                      batch_nums=len(loader),
                                                      current_epoch=kwargs.get('epoch'),
-                                                     train_state=self._return_training_state(epoch_loss, epoch_metric)))
+                                                     train_state=self._return_training_state(train_loss, train_metric)))
 
         # average the loss
         epoch_loss = epoch_loss / total_samples
 
         # average the metric
         if self.metric:
-            # TODO: sum -> metric / total_samples, mean -> metric / num_batches. The latter is less precise
             epoch_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
 
         # return the averaged loss in the whole dataset and metrics
@@ -303,17 +304,20 @@ class Trainer:
 
             if self.metric:
                 computed_metric = Trainer._compute_metric(self.metric, prediction=out, target=y)
+                computed_metric = Trainer._execute_operation(operator.mul, computed_metric, BATCH_SIZE)
                 epoch_metric = Trainer._execute_operation(operator.add, epoch_metric, computed_metric)
 
             if self.callback:
+                val_loss = epoch_loss / total_samples
+                val_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
                 self.callback.end_batch(
                     **self._create_args_for_callback(batch_index=index_batch,
                                                      batch_size=BATCH_SIZE,
                                                      batch_nums=len(loader),
                                                      current_epoch=kwargs.get('epoch'),
-                                                     val_state=self._return_training_state(epoch_loss,
-                                                                                           epoch_metric),
-                                                     in_=X.detach().cpu().clone(), out=out.detach().cpu().clone()))
+                                                     val_state=self._return_training_state(val_loss,
+                                                                                           val_metric),
+                                                     in_=X, out=out.detach()))
 
         epoch_loss = epoch_loss / total_samples
 
