@@ -111,10 +111,10 @@ class ListCallback(Callback):
         for callback in self.callbacks:
             callback.end_batch(*args, **kwargs)
 
-    def add_callback(self, callback):
+    def add_callback(self, callback : Callback):
         self.callbacks.append(callback)
 
-    def remove_callback(self, callback):
+    def remove_callback(self, callback : Callback):
         self.callbacks.remove(callback)
 
     @classmethod

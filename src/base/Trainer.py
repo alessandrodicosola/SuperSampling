@@ -83,6 +83,7 @@ class Trainer:
             self.model = model.to(device)
             self.criterion = criterion.to(device)
             # move metric if is a module
+            # Initialize metrics
             if isinstance(metric, torch.nn.Module):
                 self.metric = metric.to(device)
             elif (isinstance(metric, List)):
@@ -107,12 +108,11 @@ class Trainer:
 
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
-        self.callback = callback
 
         # flag used for stopping the training
         self.stop = False
 
-        self.callback = self._register_callbacks(callback)
+        self.callback = self._register_callbacks(optional_callback=callback)
 
         self.logger.debug(f"Init Trainer: experiment={self.experiment} model_name={self.model_info.name}")
 
@@ -130,8 +130,7 @@ class Trainer:
 
     def _register_callbacks(self, optional_callback: Union[Callback, List[Callback]]):
         default_callbacks = [
-            StdOutCallback(),
-            TensorboardCallback(str(self.log_dir))
+            StdOutCallback()
         ]
 
         if optional_callback:
@@ -251,13 +250,14 @@ class Trainer:
 
         # average the metric
         if self.metric:
-            # TODO: Differentiate between mean and sum: sum -> metric / total_samples, mean -> metric / num_batches. The latter is less precise
+            # TODO: sum -> metric / total_samples, mean -> metric / num_batches. The latter is less precise
             epoch_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
 
         # return the averaged loss in the whole dataset and metrics
         self.logger.debug("Returning loss and metrics of the whole dataset")
         return self._return_training_state(epoch_loss=epoch_loss, epoch_metric=epoch_metric)
 
+    @torch.no_grad()
     def validation(self, loader: torch.utils.data.DataLoader, **kwargs) -> 'TrainingState':
         """Define the validation loop for one epoch
 
@@ -312,7 +312,8 @@ class Trainer:
                                                      batch_nums=len(loader),
                                                      current_epoch=kwargs.get('epoch'),
                                                      val_state=self._return_training_state(epoch_loss,
-                                                                                           epoch_metric)))
+                                                                                           epoch_metric),
+                                                     in_=X.detach().cpu().clone(), out=out.detach().cpu().clone()))
 
         epoch_loss = epoch_loss / total_samples
 
@@ -373,13 +374,13 @@ class Trainer:
         # since the training is stopped at the beginning of the loop the last_epoch is indeed the new epoch for resuming the object Trainer
 
         resuming = self._init_param_for_resuming('resuming', default=False)
-        start_epoch = self._init_param_for_resuming('last_epoch', default=1)
+        start_epoch = self._init_param_for_resuming('last_epoch', default=0)
         last_loss = self._init_param_for_resuming('last_loss', default=math.inf)
         history = self._init_param_for_resuming('last_history', self.HistoryState(list(), list()))
         self.logger.debug(f"Is resuming? {resuming}")
         ###
 
-        for epoch in range(start_epoch, epochs + 1):
+        for epoch in range(start_epoch, epochs):
 
             if self.stop:
                 break
@@ -389,14 +390,12 @@ class Trainer:
                                                                            epoch=epoch,
                                                                            last_loss=last_loss)
                                           )
+
             train_state = self.train(train_loader, epoch=epoch)
             val_state = self.validation(val_loader, epoch=epoch)
 
             history.train.append(train_state)
             history.val.append(val_state)
-
-            self.logger.debug(Trainer._return_loss_and_metric_formatted(train_state, train=True))
-            self.logger.debug(Trainer._return_loss_and_metric_formatted(val_state, train=False))
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()

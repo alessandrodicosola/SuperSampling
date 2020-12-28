@@ -83,7 +83,9 @@ class SSIM(torch.nn.Module):
         self.alpha, self.beta, self.gamma = alpha_beta_gamma
 
         kernel_size, sigma = kernel_size_sigma
-        self.gaussian_kernel = gaussian_filter(kernel_size=kernel_size, sigma=sigma)
+
+        # register the gaussian kernel in order to be moved to gpu when .to is called
+        self.register_buffer('gaussian_kernel', gaussian_filter(kernel_size=kernel_size, sigma=sigma), persistent=True)
 
     @torch.no_grad()
     def forward(self, prediction: torch.Tensor, target: torch.Tensor):
@@ -144,6 +146,7 @@ class SSIM(torch.nn.Module):
             SSIM Tensor (B,C)
         """
         self.gaussian_kernel = self.gaussian_kernel.repeat(channels, 1, 1, 1)
+
 
         mu_x = torch.nn.functional.conv2d(input=prediction, weight=self.gaussian_kernel, stride=1, padding=0,
                                           groups=channels)

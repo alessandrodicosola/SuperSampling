@@ -19,9 +19,6 @@ from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresenta
 from tests.pytorch_test import PyTorchTest
 from tests.util_for_testing import RandomDataset, NetworkOneInput, NetworkTwoInputs
 
-
-# TODO Refactor test
-
 class TestForwardASDN(PyTorchTest):
     def before(self):
         LFR = LaplacianFrequencyRepresentation(1, 2, 11)

@@ -6,7 +6,6 @@ import torch
 import torch.nn
 import torch.utils.checkpoint
 
-
 from datasets.ASDNDataset import interpolating_fn
 
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
@@ -367,16 +366,19 @@ class ASDN(BaseModule):
         # get the last size: width
         OUT_SIZE = low_res_batch_i.size(-1)
 
+        # forward level i
         out_level_i = self(low_res_batch_i, level_i.index)
 
+        # forward level i-1
         out_level_i_minus_1 = self(low_res_batch_i_minus_1, level_i_minus_1.index)
         out_level_i_minus_1 = interpolating_fn(out_level_i_minus_1, size=(OUT_SIZE, OUT_SIZE))
 
+        # compute the phase at level i
         phase = out_level_i_minus_1 - out_level_i
 
-        reconstructed_image = out_level_i + self.lfr.get_weight(scale) * phase
-
-        return reconstructed_image
+        # interpolate for reconstructing image
+        # reconstructed_image =
+        return out_level_i + self.lfr.get_weight(scale) * phase
 
     @torch.no_grad()
     def val_step(self, scale, low_res_batch_i_minus_1, low_res_batch_i):
@@ -384,4 +386,4 @@ class ASDN(BaseModule):
 
     @torch.no_grad()
     def test_step(self, scale, low_res_batch_i_minus_1, low_res_batch_i):
-        pass
+        raise NotImplementedError

@@ -17,7 +17,7 @@ class StdOutCallback(Callback):
         train_state = Trainer._return_loss_and_metric_formatted(train_state, train=True)
         val_state = Trainer._return_loss_and_metric_formatted(val_state, train=False)
 
-        print("Epoch: ", kwargs.get('epoch'))
+        print("Epoch: ", kwargs.get('epoch') + 1)
         print(train_state)
         print(val_state)
 
