@@ -8,25 +8,22 @@ from datasets.ASDNDataset import ASDNDataset, collate_fn, NormalizeInverse
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 from tests.pytorch_test import PyTorchTest
 
-@skip("Done and it's working. Skipped because it's expensive.")
+# @skip("Done and it's working. Skipped because it's expensive.")
 class TestASDNDataset(PyTorchTest):
     def before(self):
-        self.PATCH_SIZE = 48
-        self.LFR = LaplacianFrequencyRepresentation(1, 2, 11)
-        self.DATASET = ASDNDataset("DIV2K_valid_HR", patch_size=self.PATCH_SIZE, lfr=self.LFR)
-        self.COLLATE_FN = partial(collate_fn, lfr=self.LFR)
+        BATCH_SIZE = 4
+        PATCH_SIZE = 48
+        LFR = LaplacianFrequencyRepresentation(1, 2, 11)
+        self.DATASET = ASDNDataset("DIV2K_valid_HR", patch_size=PATCH_SIZE, lfr=LFR)
+        self.COLLATE_FN = partial(collate_fn, lfr=LFR)
 
         NUM_WORKERS = 4
-        self.DATALOADER = DataLoader(self.dataset, num_workers=NUM_WORKERS, batch_size=self.BATCH_SIZE, pin_memory=True,
+        self.DATALOADER = DataLoader(self.DATASET, num_workers=NUM_WORKERS, batch_size=BATCH_SIZE, pin_memory=True,
                                      collate_fn=self.COLLATE_FN)
         self.denormalize = NormalizeInverse(self.DATASET.mean, self.DATASET.std)
 
     def after(self):
-        self.PATCH_SIZE = None
-        self.LFR = None
-        self.DATASET = None
-        self.COLLATE_FN = None
-        self.DATALOADER = None
+        pass
 
     def test_get_collate_fn(self):
 
@@ -48,6 +45,7 @@ class TestASDNDataset(PyTorchTest):
         for index, ((scale, low_res_batch_i_minus_1, low_res_batch_i), pyramid_i) in enumerate(
                 tqdm(self.DATALOADER)):
             if index == 0:
+                low_res_batch_i_minus_1 = self.denormalize(low_res_batch_i_minus_1)
                 low_res_batch_i = self.denormalize(low_res_batch_i)
                 pyramid_i = self.denormalize(pyramid_i)
 
@@ -56,11 +54,15 @@ class TestASDNDataset(PyTorchTest):
 
                 plt.figure(figsize=(10, 30))
 
-                plt.subplot(211)
-                plt.imshow(make_grid(low_res_batch_i[:MAX_IMAGES], nrow=N_ROW).permute(1, 2, 0))
-                plt.title("Low res i")
+                plt.subplot(311)
+                plt.imshow(make_grid(low_res_batch_i_minus_1[:MAX_IMAGES], nrow=N_ROW).permute(1, 2, 0))
+                plt.title("low_res_batch_i_minus_1")
 
-                plt.subplot(212)
+                plt.subplot(312)
+                plt.imshow(make_grid(low_res_batch_i[:MAX_IMAGES], nrow=N_ROW).permute(1, 2, 0))
+                plt.title("low_res_batch_i")
+
+                plt.subplot(313)
                 plt.imshow(make_grid(pyramid_i[:MAX_IMAGES], nrow=N_ROW).permute(1, 2, 0))
                 plt.title("Ground truth i")
 

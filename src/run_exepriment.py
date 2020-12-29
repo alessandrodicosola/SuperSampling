@@ -74,7 +74,6 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
         pin_memory:
         epochs:
         batch_size:
-        n_segments: enable gradient checkpoint (Default: 1, no checkpoint created)
 
     Keyword Args:
         in_channels
@@ -91,7 +90,7 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
     fix_randomness(2020)
 
     # set experiment string
-    experiment += f"_E{epochs}_B{batch_size}"
+    experiment += f"_E{epochs}_B{batch_size}_S{models.ASDN._SEGMENTS_GRADIENT_CHECKPOINT}"
     model_str = "_".join(map(lambda elem: f"{elem[0]}{elem[1]}", model_kwargs.items()))
     experiment += f"_{model_str}" if len(model_kwargs) > 0 else ""
 
@@ -180,4 +179,3 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
 
 if __name__ == "__main__":
     pass
-

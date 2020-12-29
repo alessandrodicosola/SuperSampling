@@ -333,7 +333,7 @@ class ASDN(BaseModule):
         self.lfr = lfr
 
         # Use custom parameters if available otherwise relay on ones defined in the paper
-        self.feature_mapping_branch = FeatureMappingBranch(in_channels=FMB_kwargs.get("in_channels", 3),
+        self.feature_mapping_branch = FeatureMappingBranch(in_channels=input_image_channels,
                                                            low_level_features=FMB_kwargs.get("low_level_features", 64),
                                                            n_dab=FMB_kwargs.get("n_dab", 16),
                                                            out_channels_dab=FMB_kwargs.get("out_compressed_channels",
