@@ -67,7 +67,7 @@ def fix_randomness(seed: int):
     torch.backends.cudnn.deterministic = True
 
 
-def main(experiment: str, epochs: int, batch_size: int, **model_kwargs):
+def run(experiment: str, epochs: int, batch_size: int, **model_kwargs):
     """Run the experiment with specified epochs
 
     Args:
@@ -79,6 +79,7 @@ def main(experiment: str, epochs: int, batch_size: int, **model_kwargs):
 
     """
     # set experiment string
+    experiment += f"_E{epochs}_B{batch_size}"
     model_str = "_".join(map(lambda elem: f"{elem[0]}{elem[1]}", model_kwargs.items()))
     experiment += f"_{model_str}" if len(model_kwargs) > 0 else ""
 
@@ -144,12 +145,15 @@ def main(experiment: str, epochs: int, batch_size: int, **model_kwargs):
     # Add Tensorboard callback external the init because it needs log_dir
     TRAINER.callback.add_callback(
         TensorboardCallback(log_dir=str(TRAINER.log_dir), print_images=True, print_images_frequency=10,
-                            denormalize_fn=NormalizeInverse(TRAIN_DATASET.mean, TRAIN_DATASET.std)))
+                            denormalize_fn=NormalizeInverse(mean=TRAIN_DATASET.mean, std=TRAIN_DATASET.std)))
     history = None
     try:
         history = TRAINER.fit(train_loader=TRAIN_DATALOADER, val_loader=VAL_DATALOADER, epochs=epochs)
     except (RuntimeError, AttributeError, ValueError) as error:
         print(f"Error during {experiment}: {str(error)} ")
+        with open(TRAINER.log_dir / "error.txt") as file_error:
+            file_error.write(error)
+
     return history
 
 
@@ -168,4 +172,4 @@ if __name__ == "__main__":
     experiment = result.experiment
     epochs = result.epochs
     batch_size = result.batch_size
-    main(experiment=experiment, epochs=epochs, batch_size=batch_size)
+    run(experiment=experiment, epochs=epochs, batch_size=batch_size)
