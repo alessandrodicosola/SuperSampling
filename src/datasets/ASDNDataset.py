@@ -209,9 +209,8 @@ class ASDNDataset(torch.utils.data.Dataset):
                 (math.floor(level.scale * patch_size), math.floor(level.scale * patch_size)),
                 interpolation=PIL.Image.BICUBIC) for level in lfr.information]
 
-        # Change NEAREST to BILINEAR
         self.resize_high_res_to_low_res = torchvision.transforms.Resize((patch_size, patch_size),
-                                                                        interpolation=PIL.Image.NEAREST)
+                                                                        interpolation=PIL.Image.BILINEAR)
         self.lfr = lfr
 
         self.augmentation = augmentation
