@@ -67,8 +67,8 @@ def fix_randomness(seed: int):
     torch.backends.cudnn.deterministic = True
 
 
-def main(experiment: str, epochs: int, batch_size: int):
-    """Run the exepriment with specified epochs
+def main(experiment: str, epochs: int, batch_size: int, **model_kwargs):
+    """Run the experiment with specified epochs
 
     Args:
         experiment: name of the experiment
@@ -78,6 +78,12 @@ def main(experiment: str, epochs: int, batch_size: int):
         history of the training ( Since tensorboard callback is used is useless)
 
     """
+    # set experiment string
+    model_str = "_".join(map(lambda elem: f"{elem[0]}{elem[1]}", model_kwargs.items()))
+    experiment += f"_{model_str}" if len(model_kwargs) > 0 else ""
+
+    print(f"Experimenting with: {experiment}")
+
     fix_randomness(2020)
 
     # Get the device
@@ -106,20 +112,21 @@ def main(experiment: str, epochs: int, batch_size: int):
     # Prepare datasets
     DATASET_DIR = get_datasets_dir() / "DIV2K"
     TRAIN_DATASET = ASDNDataset(DATASET_DIR / "DIV2K_train_HR", patch_size=PATCH_SIZE, lfr=LFR, augmentation=None)
-    TRAIN_DATALOADER = FastDataLoader(dataset=TRAIN_DATASET, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS,
-                                  collate_fn=ASDN_COLLATE_FN, pin_memory=PIN_MEMORY,
-                                  persistent_workers=PERSISTENT_WORKERS)
+    TRAIN_DATALOADER = FastDataLoader(dataset=TRAIN_DATASET, batch_size=BATCH_SIZE, shuffle=True,
+                                      num_workers=NUM_WORKERS,
+                                      collate_fn=ASDN_COLLATE_FN, pin_memory=PIN_MEMORY,
+                                      persistent_workers=PERSISTENT_WORKERS)
 
     VAL_DATASET = ASDNDataset(DATASET_DIR / "DIV2K_valid_HR", patch_size=PATCH_SIZE, lfr=LFR, augmentation=None)
     VAL_DATALOADER = FastDataLoader(dataset=VAL_DATASET, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS,
-                                collate_fn=ASDN_COLLATE_FN, pin_memory=PIN_MEMORY)
+                                    collate_fn=ASDN_COLLATE_FN, pin_memory=PIN_MEMORY)
 
     # Prepare model with default parameters
     # n_dab = 16 in the paper
-    ASDN_ = ASDN(input_image_channels=3, lfr=LFR, n_dab=8).to(DEVICE)
+    ASDN_ = ASDN(input_image_channels=3, lfr=LFR, **model_kwargs).to(DEVICE)
 
-    # Define the optimizer Adam with default parameters (although lr should be 1e-4 in order to be default by mean of the paper)
-    ADAM = Adam(ASDN_.parameters(), lr=1e-3, betas=(0.9, 0.999))
+    # lr=3e-4 as suggested in https://karpathy.github.io/2019/04/25/recipe/
+    ADAM = Adam(ASDN_.parameters(), lr=3e-4, betas=(0.9, 0.999))
 
     # NOTE: Use reduction='sum' since the trainer divided by total_samples
 
@@ -138,8 +145,12 @@ def main(experiment: str, epochs: int, batch_size: int):
     TRAINER.callback.add_callback(
         TensorboardCallback(log_dir=str(TRAINER.log_dir), print_images=True, print_images_frequency=10,
                             denormalize_fn=NormalizeInverse(TRAIN_DATASET.mean, TRAIN_DATASET.std)))
-
-    return TRAINER.fit(train_loader=TRAIN_DATALOADER, val_loader=VAL_DATALOADER, epochs=epochs)
+    history = None
+    try:
+        history = TRAINER.fit(train_loader=TRAIN_DATALOADER, val_loader=VAL_DATALOADER, epochs=epochs)
+    except (RuntimeError, AttributeError, ValueError) as error:
+        print(f"Error during {experiment}: {str(error)} ")
+    return history
 
 
 if __name__ == "__main__":
@@ -157,5 +168,4 @@ if __name__ == "__main__":
     experiment = result.experiment
     epochs = result.epochs
     batch_size = result.batch_size
-
     main(experiment=experiment, epochs=epochs, batch_size=batch_size)
