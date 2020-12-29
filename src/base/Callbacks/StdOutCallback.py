@@ -1,3 +1,5 @@
+import torch
+
 from base.Callbacks.Callback import Callback
 
 
@@ -5,9 +7,11 @@ class StdOutCallback(Callback):
     """Callback that print train and val metrics at the end of each epoch"""
 
     def start_epoch(self, *args, **kwargs):
-        pass
+        self.start.record()
 
     def end_epoch(self, *args, **kwargs):
+        self.end.record()
+
         # for avoiding circular dependency error #
         from base.Trainer import Trainer
 
@@ -17,7 +21,9 @@ class StdOutCallback(Callback):
         train_state = Trainer._return_loss_and_metric_formatted(train_state, train=True)
         val_state = Trainer._return_loss_and_metric_formatted(val_state, train=False)
 
-        print("Epoch: ", kwargs.get('epoch') + 1)
+        torch.cuda.synchronize()
+
+        print(f"EPOCH {kwargs.get('epoch') + 1} ( elapsed time (s) :{self.start.elapsed_time(self.end) // 1000} )")
         print(train_state)
         print(val_state)
 
@@ -44,3 +50,6 @@ class StdOutCallback(Callback):
     def __init__(self, print_batch=False):
         super(StdOutCallback, self).__init__()
         self.print_batch = print_batch
+
+        self.start = torch.cuda.Event(enable_timing=True)
+        self.end = torch.cuda.Event(enable_timing=True)

@@ -10,12 +10,11 @@ from datasets.ASDNDataset import interpolating_fn
 
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 
-__all__ = ["ASDN"]
-
 # define how much checkpoint will be created
 # see https://pytorch.org/docs/stable/checkpoint.html#torch.utils.checkpoint.checkpoint_sequential
-
-_SEGMENTS_GRADIENT_CHECKPOINT = 3
+# trade off between memory and training time
+_SEGMENTS_GRADIENT_CHECKPOINT = 1
+_ENABLE_GRADIENT_CHECKPOINT = _SEGMENTS_GRADIENT_CHECKPOINT > 1
 
 
 # region DenseLayer
@@ -61,7 +60,7 @@ class DenseLayer(torch.nn.Module):
         def concat_(input):
             return torch.cat([input, self.base(input)], dim=1)
 
-        if input.requires_grad:
+        if _ENABLE_GRADIENT_CHECKPOINT and input.requires_grad:
             return torch.utils.checkpoint.checkpoint(concat_, input)
         else:
             return concat_(input)
@@ -125,7 +124,7 @@ class IntraDenseBlock(torch.nn.Module):
     def forward(self, input: torch.Tensor):
         compressed_input = self.input_compression_layer(input)
 
-        if compressed_input.requires_grad:
+        if _ENABLE_GRADIENT_CHECKPOINT and compressed_input.requires_grad:
             dense_output = torch.utils.checkpoint.checkpoint_sequential(self.intra_layers,
                                                                         _SEGMENTS_GRADIENT_CHECKPOINT,
                                                                         compressed_input)
@@ -243,7 +242,7 @@ class FeatureMappingBranch(torch.nn.Module):
 
     def forward(self, input):
         low_level_features = self.low_level_features(input)
-        if low_level_features.requires_grad:
+        if _ENABLE_GRADIENT_CHECKPOINT and low_level_features.requires_grad:
             dense_output = torch.utils.checkpoint.checkpoint_sequential(self.dabs,
                                                                         _SEGMENTS_GRADIENT_CHECKPOINT,
                                                                         low_level_features)

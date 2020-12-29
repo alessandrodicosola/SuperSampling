@@ -92,19 +92,18 @@ class Trainer:
             elif (isinstance(metric, Dict)):
                 self.metric = {key: (metric_fn.to(device) if isinstance(metric_fn, torch.nn.Module) else metric_fn) for
                                key, metric_fn in metric.items()}
+            self.device = device
         else:
             self.model = model
             self.criterion = criterion
             self.metric = metric
+            self.device = device
 
         # set TrainingState type (it's dynamic: it changes with metric)
         # TrainingState(loss,metric1,...,metric_n)
         # set HistoryState (which is based on TrainingState)
         self.TrainingState = Trainer._register_training_state_type(metric)
         self.HistoryState = self._register_history_state_type()
-
-        # set the device for moving batches
-        self.device = device
 
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
@@ -523,7 +522,7 @@ class Trainer:
             name: name to rename
 
         Returns:
-            well foramtted name
+            well formatted name
         """
         return re.sub(r"[^\w\d]+", '_', name)
 

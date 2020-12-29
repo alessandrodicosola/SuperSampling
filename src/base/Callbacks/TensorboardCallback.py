@@ -4,6 +4,7 @@ from typing import List, Tuple
 import torch.utils.tensorboard
 import torchvision
 from torch import Tensor
+from torch.utils.tensorboard import SummaryWriter
 
 import base.logging_
 from base.Callbacks import Callback
@@ -20,7 +21,7 @@ class TensorboardCallback(Callback):
     """
 
     def start_epoch(self, *args, **kwargs):
-        self.writer = torch.utils.tensorboard.SummaryWriter(self.log_dir)
+        self.writer = SummaryWriter(self.log_dir)
 
     def end_epoch(self, *args, **kwargs):
         epoch = kwargs.get('epoch')
@@ -64,12 +65,12 @@ class TensorboardCallback(Callback):
                 X = kwargs.get("in_")
                 if isinstance(X, (List, Tuple)):
                     for index, input in enumerate(filter(lambda elem: isinstance(elem, Tensor), X)):
-                        grid_in = torchvision.utils.make_grid(self.get_tensor(input), nrow=4)
+                        grid_in = torchvision.utils.make_grid(self.get_tensor(input.detach()), nrow=4)
                         self.writer.add_image(f'Epoch/Images/Input{index}', grid_in, kwargs.get('current_epoch'))
                     del X
                 elif isinstance(X, Tensor):
-                    grid_in = torchvision.utils.make_grid(self.get_tensor(X), nrow=4)
-                    self.writer.add_image(f'Epoch/Images/Input', grid_in, kwargs.get('current_epoch'))
+                    grid_in = torchvision.utils.make_grid(self.get_tensor(X.detach()), nrow=4)
+                    self.writer.add_image('Epoch/Images/Input', grid_in, kwargs.get('current_epoch'))
                     del X
                 else:
                     raise RuntimeError("Unknown type.")
@@ -80,8 +81,8 @@ class TensorboardCallback(Callback):
 
     def __init__(self, log_dir: str, print_images=False, print_images_frequency: int = 10, denormalize_fn=None):
         super(TensorboardCallback, self).__init__()
-        self.log_dir = log_dir + "/" + datetime.now().strftime("%d_%m_%Y_%H_%M_%S_%f")
-        self.writer = None
+        self.log_dir = log_dir
+        self.writer : SummaryWriter = None
 
         self.denormalize_fn = denormalize_fn
         self.print_images = print_images

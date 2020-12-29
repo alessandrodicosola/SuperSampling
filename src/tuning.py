@@ -1,20 +1,31 @@
-# Stress the model in order to find the batch size for each model architecture
+###
+### Find if a particular architecture is able to complete an epoch with a particular batch_size
+###
+
 
 from run_exepriment import run, fix_randomness
 import random
+
+
+def tune(n_dab, n_intra_layers):
+    for batch_size in reversed(range(4, 16 + 1, 4)):
+        error = run("TUNING", epochs=1, n_workers=0, pin_memory=False, batch_size=batch_size, n_dab=n_dab,
+                    n_intra_layers=n_intra_layers)
+
+        # if not error best batch_size is found, no need to reduce it.
+        if not error:
+            return
+
 
 if __name__ == "__main__":
 
     n_experiment = 10
 
-    for n in range(n_experiment):
-        # set a new seed for randomness
+    for _ in range(n_experiment):
         random.seed()
-        batch_size = random.randint(4, 16)
-        n_dabs = random.randint(4, 16)
+        n_dab = random.randint(4, 16)
+        random.seed()
         n_intra_layers = random.randint(4, 8)
 
-        # fix randomness
         fix_randomness(2020)
-        run("TUNING", epochs=1, batch_size=batch_size, n_dabs=n_dabs,
-            n_intra_layers=n_intra_layers)
+        tune(n_dab, n_intra_layers)

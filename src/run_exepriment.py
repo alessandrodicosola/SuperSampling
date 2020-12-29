@@ -14,11 +14,9 @@ from base.Trainer import Trainer
 from base.metrics.PSNR import PSNR
 from base.metrics.SSIM import SSIM
 from datasets.ASDNDataset import ASDNDataset, collate_fn, NormalizeInverse
-from models.ASDN import ASDN
+import models.ASDN
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 from utility import get_datasets_dir
-
-import base.logging_
 
 
 class _RepeatSampler(object):
@@ -67,17 +65,31 @@ def fix_randomness(seed: int):
     torch.backends.cudnn.deterministic = True
 
 
-def run(experiment: str, epochs: int, batch_size: int, **model_kwargs):
+def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_size: int, **model_kwargs):
     """Run the experiment with specified epochs
 
     Args:
-        experiment: name of the experiment
-        epochs: epochs to run
+        experiment:
+        n_workers:
+        pin_memory:
+        epochs:
+        batch_size:
+        n_segments: enable gradient checkpoint (Default: 1, no checkpoint created)
+
+    Keyword Args:
+        in_channels
+        low_level_features
+        n_dab
+        out_channels_dab
+        intra_layer_output_features
+        n_intra_layers
+        reduction
 
     Returns:
-        history of the training ( Since tensorboard callback is used is useless)
-
+        error : bool
     """
+    fix_randomness(2020)
+
     # set experiment string
     experiment += f"_E{epochs}_B{batch_size}"
     model_str = "_".join(map(lambda elem: f"{elem[0]}{elem[1]}", model_kwargs.items()))
@@ -85,22 +97,20 @@ def run(experiment: str, epochs: int, batch_size: int, **model_kwargs):
 
     print(f"Experimenting with: {experiment}")
 
-    fix_randomness(2020)
-
     # Get the device
     if not torch.cuda.is_available():
         raise RuntimeError("No GPU available. Cannot train the network.")
+
     DEVICE = torch.device('cuda:0')
 
-    # Greater than 8 led to OutOfMemory
+    # Greater than 8 led to OutOfMemory using default configuration
     BATCH_SIZE = batch_size
     # BUG: https://github.com/pytorch/pytorch/issues/15849#issuecomment-573921048
     # PyTorch spawn process until crash n both cpu or gpu (if pin_memory = True )
     # python multiprocessing has problems in windows
     # has workaround I'm using FastDataLoader
-    NUM_WORKERS = 4
-    PIN_MEMORY = True
-    PERSISTENT_WORKERS = False
+    NUM_WORKERS = n_workers
+    PIN_MEMORY = pin_memory
 
     PATCH_SIZE = 48
 
@@ -115,21 +125,17 @@ def run(experiment: str, epochs: int, batch_size: int, **model_kwargs):
     TRAIN_DATASET = ASDNDataset(DATASET_DIR / "DIV2K_train_HR", patch_size=PATCH_SIZE, lfr=LFR, augmentation=None)
     TRAIN_DATALOADER = FastDataLoader(dataset=TRAIN_DATASET, batch_size=BATCH_SIZE, shuffle=True,
                                       num_workers=NUM_WORKERS,
-                                      collate_fn=ASDN_COLLATE_FN, pin_memory=PIN_MEMORY,
-                                      persistent_workers=PERSISTENT_WORKERS)
+                                      collate_fn=ASDN_COLLATE_FN, pin_memory=PIN_MEMORY)
 
     VAL_DATASET = ASDNDataset(DATASET_DIR / "DIV2K_valid_HR", patch_size=PATCH_SIZE, lfr=LFR, augmentation=None)
     VAL_DATALOADER = FastDataLoader(dataset=VAL_DATASET, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS,
                                     collate_fn=ASDN_COLLATE_FN, pin_memory=PIN_MEMORY)
 
     # Prepare model with default parameters
-    # n_dab = 16 in the paper
-    ASDN_ = ASDN(input_image_channels=3, lfr=LFR, **model_kwargs).to(DEVICE)
+    ASDN_ = models.ASDN.ASDN(input_image_channels=3, lfr=LFR, **model_kwargs).to(DEVICE)
 
     # lr=3e-4 as suggested in https://karpathy.github.io/2019/04/25/recipe/
     ADAM = Adam(ASDN_.parameters(), lr=3e-4, betas=(0.9, 0.999))
-
-    # NOTE: Use reduction='sum' since the trainer divided by total_samples
 
     # Define the criterion
     L1 = L1Loss(reduction='mean').to(DEVICE)
@@ -139,37 +145,39 @@ def run(experiment: str, epochs: int, batch_size: int, **model_kwargs):
     METRICS = PSNR(max_pixel_value=1.0, reduction='mean')  # SSIM(max_pixel_value=1.0, reduction='mean')]
 
     # Define the trainer
-    TRAINER = Trainer(experiment=experiment, model=ASDN_, optimizer=ADAM, criterion=L1, metric=METRICS, device=DEVICE,
-                      lr_scheduler=None, callback=None)
+    TRAINER = Trainer(experiment=experiment, model=ASDN_, optimizer=ADAM, criterion=L1, metric=METRICS,
+                      device=DEVICE,
+                      lr_scheduler=None,
+                      callback=None)
 
-    # Add Tensorboard callback external the init because it needs log_dir
-    TRAINER.callback.add_callback(
-        TensorboardCallback(log_dir=str(TRAINER.log_dir), print_images=True, print_images_frequency=10,
-                            denormalize_fn=NormalizeInverse(mean=TRAIN_DATASET.mean, std=TRAIN_DATASET.std)))
-    history = None
+    tensorboard_callback = TensorboardCallback(log_dir=str(TRAINER.log_dir), print_images=True,
+                                               print_images_frequency=10,
+                                               denormalize_fn=NormalizeInverse(mean=TRAIN_DATASET.mean,
+                                                                               std=TRAIN_DATASET.std))
+
+    TRAINER.callback.add_callback(tensorboard_callback)
+
+    error: bool = False
     try:
-        history = TRAINER.fit(train_loader=TRAIN_DATALOADER, val_loader=VAL_DATALOADER, epochs=epochs)
-    except (RuntimeError, AttributeError, ValueError) as error:
-        print(f"Error during {experiment}: {str(error)} ")
-        with open(TRAINER.log_dir / "error.txt") as file_error:
-            file_error.write(error)
+        TRAINER.fit(train_loader=TRAIN_DATALOADER, val_loader=VAL_DATALOADER, epochs=epochs)
+    except (RuntimeError, ValueError) as e:
+        tensorboard_callback.writer.add_text("Error", str(e))
+        error = True
+    finally:
+        # cleanup
+        del TRAINER
+        del ADAM
+        del ASDN_
 
-    return history
+        tensorboard_callback.writer.close()
+        del tensorboard_callback
+
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+
+    return error
 
 
 if __name__ == "__main__":
-    base.logging_.disable_up_to(logging.ERROR)
+    pass
 
-    import argparse
-
-    parser = argparse.ArgumentParser("run_experiment.py")
-    parser.add_argument("experiment", type=str)
-    parser.add_argument("epochs", type=int)
-    parser.add_argument("batch_size", type=int)
-
-    result = parser.parse_args()
-
-    experiment = result.experiment
-    epochs = result.epochs
-    batch_size = result.batch_size
-    run(experiment=experiment, epochs=epochs, batch_size=batch_size)
