@@ -6,6 +6,7 @@
 \usepackage{subcaption}
 \usepackage{tabularx}
 \usepackage{hyperref}
+\usepackage{bookmark}
 \usepackage{amssymb,amsmath,amsthm}
 
 \graphicspath{{../images/}}
@@ -144,7 +145,7 @@
         \end{figure}
         \begin{itemize}
             \item ESDR-100, RDN-100, ASDN-100: upsampling networks trained and tested on 100 scales between (1,2] on Set5.
-            \item ESDR-Conv, RDN-Conv, ADSN: network with 11 IRBs.
+            \item ESDR-Conv, RDN-Conv, ADSN: networks trained as ASDN with 11 IRBs.
             \item ASDN-4,8,16: networks with 5,9,17 levels in the LFR with a scales range between (1,2]
             \item A denser LFR is better but saturate beyond 10 phases (11 levels).
         \end{itemize}
@@ -206,7 +207,7 @@
         \begin{itemize}
             \tiny
             \item Bi-dense connections (DAB with IDB) for learning efficiently features (since DenseNet, SRDenseNet and RDN doesn't allow previous features to be used into next blocks).
-            \item IDB contains convolutions whose activations are processed with ReLu (without BN) and densely connected.
+            \item IDB contains convolutions whose activations are processed with ReLu (without BN in order to maintain image details), densely connected convolutions and convolutions for compressing the input and the output (which is summed with the compressed input).
             \item CA from RCAN in order to focus on most important features.
             \item SA from CSFM in order to focus on particular and important textures at the reconstruction.
             \item Two IRBs are activated based on the scale used for training or testing and the the final image is reconstructed using the formula seen before. 
@@ -220,13 +221,112 @@
             \item Number of convolutions inside IDBs: 8.
         \end{itemize}
     }
-        
+
+    \only<11>{
+        \framesubtitle{Training}
+        \begin{itemize}
+            \small
+            \item Dataset used: DIV2K and Flicker
+            \item At each update each IRB is randomly selected and combined after FMB
+            \item The input LR images are bicubic interpolated from the training images with 11 decimal ratios r in evenly distributed in the range of \text{(1,2]}.
+            \item In each training batch, 16 augmented RGB patches with the size 48x48 are extracted from LR images as the input, and the LR images are randomly selected from one scale training samples among the total 11 scales training data.
+            \item In the training batch, a batch of 96x96 size patches is used as targets and the corresponding scale LR RGB patches to optimize the specific scale modules.
+            \item Data augmentation: horizontal flip and 90-degree rotation.
+            \item Use Adam ( default parameters ) with L1 loss and lr is halved at every 200000 minibatch updates for 1000000 total minibatch updates. 
+        \end{itemize}
+    }
+    \only<12>{
+        \framesubtitle{Testing}
+        \begin{itemize}
+            \item Dataset used: Set5, Set14, BSD100, Urban100 and Manga109.
+            \item Testing images are first downscaled with the test scale s (randomly selected).
+            \item If the scale s is not large than 2, the LR images with scale s are upsampled and forwarded into the ASDN with two enabled neighboring Laplacian pyramid levels of the scale s and HR image are predicted interpolating this two levels.
+            \item If the scale s is large than 2, the testing is done recursively $$\left\lceil \log_2R \right\rceil$$ 
+        \end{itemize}
+    }
+\end{frame}
+
+\begin{frame}{FSDN - Fixed-Scale Deep Network}
+    \begin{itemize}
+        \item Fine-tune ASDN for a specific scale.
+        \item Same structure of ASDN.
+        \item A deconvolutional layer is inserted before IRB.
+        \item Training: LR images downscaled by 2x,3x,4x,8x based on the specific scale and trained on the specific scale.
+        \item Testing: LR images downscaled and forwarded into the network for returning the corresponding output.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{ASDN : Results}
+    \only<1>{
+        \framesubtitle{Fixed-scale}
+        \begin{columns}
+            \begin{column}{0.5\textwidth}
+                \begin{figure}
+                    \centering
+                    \includegraphics[width=\textwidth,height=200px]{asdn-table1.png}
+                \end{figure}                    
+            \end{column}
+            \begin{column}{0.5\textwidth}
+                \begin{itemize}
+                    \tiny
+                    \item Overall FSDN is better than SOTA networks up to now.
+                    \item RCAN is sometimes better due to more channel attention layers which allow better reconstruction.
+                    \item ASDN is better than other networks in all fixed scales although it is trained in the range (1,2].
+                    \item Sometime ASDN performs worst than other networks because they are trained on specific scales with specific upsampled modules (transposed convolution) not usable with decimal ratios. The meta-upsampling module can be used only on scales used for training. Indeed FSDN performs better than ASDN due to the transposed convolution.
+                \end{itemize}                    
+            \end{column}
+        \end{columns}
+    }
+    \only<2>{
+        \framesubtitle{Any-scale}
+        \begin{columns}[onlytextwidth]
+            \begin{column}{0.5\textwidth}
+                \begin{figure}
+                    \centering
+                    \includegraphics[width=\textwidth, keepaspectratio]{asdn-table2.png}
+                \end{figure}
+                \begin{figure}
+                    \centering
+                    \includegraphics[width=\textwidth, keepaspectratio]{asdn-fig4.png}
+                \end{figure}                    
+            \end{column}
+            \begin{column}{0.5\textwidth}
+                \begin{center}
+                    \begin{itemize}
+                        \tiny
+                        \item VDSR-Conv, EDSR-Conv,RDN-Conv are networks trained as ADSN
+                        \item Meta-EDSR, Meta-RDN are networks with a meta-upscaling module trained with scales range between [1,4] with stride 0.1
+                        \item ASDN and networks trained as ASDN perform better on continuos (random) scales between 1 and 8.
+                    \end{itemize}                        
+                \end{center}
+            \end{column}
+        \end{columns}
+    }
+    \only<3>{
+        \framesubtitle{Qualitative comparison}
+        \begin{figure}
+            \centering
+            \includegraphics[height=0.88\textheight, keepaspectratio]{asdn-qulitative-results.png}
+        \end{figure}
+    }
+\end{frame}
+
+\begin{frame}{ASDN}{Model analysis}
+    \begin{figure}
+        \centering
+        \includegraphics[height=0.5\textheight,keepaspectratio]{asdn-psnr-n_params.png}
+        \vspace*{100px}
+        \includegraphics[height=0.5\textheight,keepaspectratio]{asdn-ablation-study.png}
+    \end{figure}
 \end{frame}
 
 
 
 % EXTRA 
-\begin{frame}{Extra}{Laplacian pyramid\cite{laplacianpyramid}}
+\begin{frame}{Extra}
+    \only<1-2>{
+        \framesubtitle{Laplacian pyramid\cite{laplacianpyramid}}
+    }
     \only<1>{
         \begin{itemize}
             \small
@@ -269,7 +369,33 @@
             \includegraphics[width=0.9\textwidth]{laplacian-pyramid example.png}
         \end{figure}
     }
-  
+    \only<3-4>{
+        \framesubtitle{DBDN: Deep Bi-Dense Networks for image SR}
+    }
+    \only<3>{
+        \begin{itemize}
+            \item Deeper network lead to better performance
+            \item The deeper the network is the more likely the vanishing/exploding gradient is present.
+            \item Use skip connections (with sum). 
+            \item Reuse features thanks to dense connection (with concatenation) for improving final results.
+            \item The flow is limited from one block to another: features are not really reused.
+        \end{itemize}
+        \begin{figure}
+            \centering
+            \includegraphics[height=0.4\textheight, keepaspectratio]{bidense-comparison.png}
+        \end{figure}
+    }
+    \only<4>{
+        \begin{figure}
+            \centering
+            \includegraphics[height=0.37\textheight,keepaspectratio]{bidense-model.png}
+        \end{figure}
+        \begin{figure}
+            \centering
+            \includegraphics[height=0.37\textheight,keepaspectratio]{bidense-intra-dense-block.png}
+        \end{figure}
+    }
+
 \end{frame}
 
 \bibliographystyle{ieeetr}
