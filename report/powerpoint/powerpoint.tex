@@ -396,6 +396,33 @@
         \end{figure}
     }
 
+    \only<5-6>{
+        \framesubtitle{Meta-SR: A Maginfication-Arbitrary Network for SR}
+    }
+
+    \only<5>{
+        \begin{itemize}
+            \item SR for a specific integer scale as independent task: memory-wise and time-wise costly.
+            \item The same hold with decimal scale ( since you have to train and maintain data and models ).
+            \item Meta-SR exploit \textbf{meta-learning} creating \textbf{meta-upscale} module which allow to learn to generate weights based on the input scale and therefore use one network for all possible \textit{trained} scales.
+        \end{itemize}
+    }
+    \only<6>{
+        \begin{figure}
+            \centering
+            \includegraphics[height=0.5\textheight, keepaspectratio]{metasr-model.png}
+        \end{figure}
+
+        \textbf{Meta Upscale Module}:
+        \begin{itemize}
+            \tiny
+            \item \textit{location projector}: project pixel in HR to LR image
+            \item \textit{weight prediction}: predicts the weights of the kernels using a fully connected network (2 layers with 256 hidden units and ReLU as activation)
+            The input is vector of offset (proper choice) and scales (in order to differentiate different scales during training therefore learn different weight for different scales).
+            \item \textit{feature mapping}: reconstruct the image as the matrix product between the features extracted and the weights computed.
+        \end{itemize}
+    }
+
 \end{frame}
 
 \bibliographystyle{ieeetr}
