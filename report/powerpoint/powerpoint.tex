@@ -7,6 +7,7 @@
 \usepackage{tabularx}
 \usepackage{hyperref}
 \usepackage{bookmark}
+\usepackage{hyperref}
 \usepackage{amssymb,amsmath,amsthm}
 
 \graphicspath{{../images/}}
@@ -84,7 +85,7 @@
             \item SRCNN \cite{srcnn} : CNN using only three convolutions for extracting information, process them and reconstruct the SR image.
             \item VDSR : VGG-net that learns a residual instead of the direct mapping LR-HR in order to focus the training on high frequency information.
             \item SRDenseNet, RDN, \textcolor{red}{DBDN\cite{DBDN}}: Combine residual connection (locally and globally) with dense connection
-            \item \textcolor{red}{RCAN\cite{RCAN}}, \textcolor{red}{CSFM\cite{spatialattentionmechanism9}} : Use channel-wise and spatial attention for focusing the training on important features or region in order to ease the convergence and improve the results.
+            \item \textcolor{red}{RCAN\cite{RCAN}}, \textcolor{red}{CSFM\cite{CSFM}} : Use channel-wise and spatial attention for focusing the training on important features or region in order to ease the convergence and improve the results.
             \item \textcolor{red}{LapSRN\cite{LapSRN}}, \textcolor{red}{MS-LapSRN\cite{MSLapSRN}} : multi scale network using a \textit{Laplacian Pyramid Framework} \cite{laplacianpyramid}
             \item \textcolor{red}{MetaSR\cite{MetaSR}} : use a meta-upscaling module for learning LR-HR mapping using any scale.
         \end{itemize}
@@ -324,9 +325,24 @@
 
 % EXTRA 
 \begin{frame}{Extra}
+    % Set subtitles
     \only<1-2>{
         \framesubtitle{Laplacian pyramid\cite{laplacianpyramid}}
     }
+    \only<3-4>{
+        \framesubtitle{DBDN: Deep Bi-Dense Networks for image SR \cite{DBDN}}
+    }
+    \only<5-6>{
+        \framesubtitle{Meta-SR: A Maginfication-Arbitrary Network for SR \cite{MetaSR}}
+    }
+    \only<7-8>{
+        \framesubtitle{RCAN: Image SR using very deep Residual Channel Attention Networks \cite{RCAN}}
+    }
+    \only<9-10>{
+        \framesubtitle{CSFM: Channel-wise and Spatial Feature Modulation Network for Single Image SR \cite{CSFM}}
+    }
+
+    % Set frames content
     \only<1>{
         \begin{itemize}
             \small
@@ -369,9 +385,7 @@
             \includegraphics[width=0.9\textwidth]{laplacian-pyramid example.png}
         \end{figure}
     }
-    \only<3-4>{
-        \framesubtitle{DBDN: Deep Bi-Dense Networks for image SR}
-    }
+    
     \only<3>{
         \begin{itemize}
             \item Deeper network lead to better performance
@@ -396,16 +410,17 @@
         \end{figure}
     }
 
-    \only<5-6>{
-        \framesubtitle{Meta-SR: A Maginfication-Arbitrary Network for SR}
-    }
-
     \only<5>{
         \begin{itemize}
-            \item SR for a specific integer scale as independent task: memory-wise and time-wise costly.
-            \item The same hold with decimal scale ( since you have to train and maintain data and models ).
+            \item SR for a specific integer scale as independent task: memory-wise and time-wise costly ( since you have to train and maintain data and models ) .
+            \item The same hold with decimal scale.
             \item Meta-SR exploit \textbf{meta-learning} creating \textbf{meta-upscale} module which allow to learn to generate weights based on the input scale and therefore use one network for all possible \textit{trained} scales.
         \end{itemize}
+            \begin{figure}
+                \centering
+                \includegraphics[scale=0.4]{paramsimageoperatormodel.png}
+                \caption{Meta-learning on Parametrized Image Operators \cite{ParametrizedImageOperator}}
+            \end{figure}
     }
     \only<6>{
         \begin{figure}
@@ -423,6 +438,72 @@
         \end{itemize}
     }
 
+    
+    \only<7>{
+        \begin{itemize}
+            \item Deep networks are very effective for CV tasks
+            \item This lead to vanishing/exploding gradients, hence skip connections are used in order to avoid these.
+            \item The LR image contains low-frequency information
+            \item The processed features inside the network contain high-frequency information.
+            \item Increase the performance focusing the learning of high-frequency information using \textbf{attention}.
+        \end{itemize}
+    }
+    \only<8>{
+        \begin{figure}
+            \begin{subfigure}{0.45\textwidth}
+                \centering
+                \includegraphics[width=\textwidth, keepaspectratio]{rcan-model.png}                    
+            \end{subfigure}
+            \begin{subfigure}{0.45\textwidth}
+                \begin{subfigure}{\textwidth}
+                    \centering
+                    \includegraphics[width=\textwidth, keepaspectratio]{rcan-rcab.png}
+                \end{subfigure}    
+                \begin{subfigure}{\textwidth}
+                    \centering
+                    \includegraphics[width=\textwidth, keepaspectratio]{rcan-channel-attention-module.png}
+                \end{subfigure}                
+            \end{subfigure}
+        \end{figure}
+        \begin{itemize}
+            \item \textbf{Residual-in-Residual}: allow to build a deeper network as well as allow to flow low-frequency information from shallow levels to deeper levels easing the training. 
+            \item \textbf{Channel-wise attention}: Increase the performance of the network focusing on most important channel-wise features.
+        \end{itemize}
+    }
+
+    \only<9>{
+        \begin{itemize}
+            \item Use deeper network for higher performance.
+            \item Use residual and dense connections for avoiding exploding/vanishing gradient.
+            \item Use residual and dense connection for features reusing and flowing most important information in the network.
+            \item Exploit attention channel-wise and spatial-wise for learning high-frequency information and information on most important region.
+        \end{itemize}
+    }
+    \only<10>{
+        \begin{columns}
+            \begin{column}{0.5\textwidth}
+                \begin{figure}
+                    \begin{subfigure}{\textwidth}                
+                        \centering
+                        \includegraphics[width=\textwidth, keepaspectratio]{csfm-model.png}
+                    \end{subfigure}
+                    \begin{subfigure}{\textwidth}                
+                        \centering
+                        \includegraphics[height=0.45\textheight, keepaspectratio]{csfm-csar-module.png}
+                    \end{subfigure}            
+                \end{figure}                        
+            \end{column}
+            \begin{column}{0.5\paperwidth}
+                \begin{itemize}
+                    \small
+                    \item Use FMMs for exploiting channel and spatial information as well as create a memory using the GF node.
+                    \item The CSAR blockchain allow to capture most important features information and flow these into the FMM module.
+                    \item The GF node concatenate the current CSAR blockchain output and all previous FMM outputs for preserving long-term information and also create new features for SR image reconstruction.
+                \end{itemize}
+            \end{column}
+        \end{columns}
+    }
+    
 \end{frame}
 
 \bibliographystyle{ieeetr}
