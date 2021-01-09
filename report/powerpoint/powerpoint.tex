@@ -1,16 +1,23 @@
-\documentclass{beamer}
+\documentclass[
+    xcolor={svgnames},
+    hyperref={colorlinks,citecolor=OrangeRed,linkcolor=OrangeRed,urlcolor=DarkBlue}
+    ]{beamer}
 \setbeamerfont{caption}{size=\tiny}
 
+\definecolor{LightPurple}{HTML}{bc83ff}
+
 \usepackage{graphicx}
-\usepackage{xcolor}
+\graphicspath{{../images/}}
+
 \usepackage{subcaption}
 \usepackage{tabularx}
-\usepackage{hyperref}
-\usepackage{bookmark}
-\usepackage{hyperref}
+\usepackage{nameref}
 \usepackage{amssymb,amsmath,amsthm}
+\usepackage{adjustbox}
 
-\graphicspath{{../images/}}
+\usepackage{bookmark}
+
+\newcommand{\linksection}[1]{\hyperlink{section:#1}{\nameref{section:#1}}}
 
 \defbeamertemplate*{title page}{customized}[1][]
 {
@@ -27,7 +34,7 @@
 
 
 \institute{Alma Mater Studiorum \\ University of Bologna}
-\title{Artificial Intelligence - Machine Learning for Computer Vision}
+\title{Artificial Intelligence \\ Machine Learning for Computer Vision}
 \subtitle{Project work}
 \author{Alessandro Dicosola [Matr. 935563]}
 \date{}
@@ -78,16 +85,16 @@
             \end{column}
         \end{columns}
     }
-
+    % TODO: Create link to section
     \only<2>{
         \framesubtitle{CNN \cite[Releated works]{ASDN} \cite{SRsurvey}}
         \begin{itemize}
             \item SRCNN \cite{srcnn} : CNN using only three convolutions for extracting information, process them and reconstruct the SR image.
             \item VDSR : VGG-net that learns a residual instead of the direct mapping LR-HR in order to focus the training on high frequency information.
-            \item SRDenseNet, RDN, \textcolor{red}{DBDN\cite{DBDN}}: Combine residual connection (locally and globally) with dense connection
-            \item \textcolor{red}{RCAN\cite{RCAN}}, \textcolor{red}{CSFM\cite{CSFM}} : Use channel-wise and spatial attention for focusing the training on important features or region in order to ease the convergence and improve the results.
-            \item \textcolor{red}{LapSRN\cite{LapSRN}}, \textcolor{red}{MS-LapSRN\cite{MSLapSRN}} : multi scale network using a \textit{Laplacian Pyramid Framework} \cite{laplacianpyramid}
-            \item \textcolor{red}{MetaSR\cite{MetaSR}} : use a meta-upscaling module for learning LR-HR mapping using any scale.
+            \item SRDenseNet, RDN, \linksection{DBDN}\cite{DBDN}: Combine residual connection (locally and globally) with dense connection
+            \item \linksection{RCAN}\cite{RCAN}, \linksection{CSFM}\cite{CSFM}: Use channel-wise and spatial attention for focusing the training on important features or region in order to ease the convergence and improve the results.
+            \item \linksection{LapSRN}\cite{LapSRN}\cite{MSLapSRN} : multi scale network using a \textit{Laplacian Pyramid Framework} \linksection{LaplacianPyramid}\cite{laplacianpyramid}
+            \item \linksection{MetaSR}\cite{MetaSR} : use a meta-upscaling module for learning LR-HR mapping using any scale.
         \end{itemize}
     }
 \end{frame}
@@ -96,7 +103,7 @@
     \only<1>{
         \begin{itemize}
             \item Find an LR-HR mapping with \textcolor{blue}{any} scale (integer or real)
-            \item Use Laplacian Frequency Representation \cite{laplacianpyramid} for reconstructing SR image interpolating two nearest level in the LFR.
+            \item Use Laplacian Frequency Representation for reconstructing SR image interpolating two nearest level in the LFR.
             \item The range scales was found to be optimal between 1 and 2 using 11 levels in the LFR.
             \item For scale greater than 2 the network is \textit{deployed recursively}.
         \end{itemize}
@@ -327,19 +334,28 @@
 \begin{frame}{Extra}
     % Set subtitles
     \only<1-2>{
+        \section{Laplacian Pyramid}\label<1>{section:LaplacianPyramid}
         \framesubtitle{Laplacian pyramid\cite{laplacianpyramid}}
     }
     \only<3-4>{
+        \section{DBDN}\label<3>{section:DBDN}
         \framesubtitle{DBDN: Deep Bi-Dense Networks for image SR \cite{DBDN}}
     }
     \only<5-6>{
+        \section{MetaSR}\label<5>{section:MetaSR}
         \framesubtitle{Meta-SR: A Maginfication-Arbitrary Network for SR \cite{MetaSR}}
     }
     \only<7-8>{
+        \section{RCAN}\label<7>{section:RCAN}
         \framesubtitle{RCAN: Image SR using very deep Residual Channel Attention Networks \cite{RCAN}}
     }
     \only<9-10>{
+        \section{CSFM}\label<9>{section:CSFM}
         \framesubtitle{CSFM: Channel-wise and Spatial Feature Modulation Network for Single Image SR \cite{CSFM}}
+    }
+    \only<11-12>{
+        \section{LapSRN and MS-LapSRN}\label<11>{section:LapSRN}
+        \framesubtitle{LapSR and MSLapSR: Fast and accuracte Image SR with Deep Laplacian Pyramid Networks \cite{LapSRN} \cite{MSLapSRN}}
     }
 
     % Set frames content
@@ -503,7 +519,56 @@
             \end{column}
         \end{columns}
     }
-    
+
+    \only<11>{
+        \textbf{LapSRN}        
+        \begin{itemize}
+            \tiny
+                \item L2 loss fail to capture one-to-many mapping between LR and HR patches: use \textbf{Charbonnier loss}:
+                $
+                L_S = \frac{1}{N} \sum_{i=1}^{N}\sum_{l=1}^{L} \rho \times \left( \left( y_l^{(i)}-x_l^{(i)} \right) - r_l^{(i)} \right)
+                $
+                where \textit{S} is the target upsampling factor, $L=\log_2 S$,  $\rho = \sqrt{x^2+\epsilon^2}$ (Charbonnier penalty function, differentiable variant of L1 norm).
+
+                \item Apply the upsampling operator at the end (previous papers apply it at the beginning increasing inference and training time): \textbf{transposed convolution} or \textbf{subpixel convolution}.
+                \item Single upsampling step lead to worst performance: \textbf{reconstruct progressively} the SR image using a laplacian pyramid framework \cite{laplacianpyramid}.
+        \end{itemize}
+        
+        \textbf{MS-LapSRN}
+        \begin{itemize}
+            \tiny
+            \item \textbf{Parameter sharing} within (reuse of the same recursive blok) pyramid levels and across pyramid levels (reuse of the same feature extractor).
+            \item Use of \textbf{skip connections} for avoiding vanishing/exploding gradients
+            \item \textbf{Multi-scale training} (in the previous work they trained different network for each scale: 2x,4x,8x)
+        \end{itemize}
+    }   
+    \only<12>{
+        \begin{columns}[T]
+            \begin{column}{0.5\textwidth}
+                \begin{figure}
+                    \begin{subfigure}{\textwidth}
+                        \centering
+                        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-old-model.png}                            
+                    \end{subfigure}
+                    \begin{subfigure}{\textwidth}
+                        \centering
+                        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-new-model.png}                            
+                    \end{subfigure}
+                \end{figure}                        
+            \end{column}
+            \begin{column}{0.5\textwidth}
+                \begin{figure}
+                    \begin{subfigure}{\textwidth}
+                        \adjustimage{height=0.29\textheight, keepaspectratio, cfbox=LightPurple 2pt}{lapsr-recursive-block-differences.png}
+                    \end{subfigure}
+                    \begin{subfigure}{\textwidth}
+                        \adjustimage{height=0.29\textheight, keepaspectratio,cfbox=LightPurple 2pt}{lapsr-recursive-block.png}
+                    \end{subfigure}
+                \end{figure}                        
+            \end{column}
+        \end{columns}
+    }   
+
 \end{frame}
 
 \bibliographystyle{ieeetr}
