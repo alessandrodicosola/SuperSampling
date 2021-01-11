@@ -533,8 +533,6 @@
                 L_S = \frac{1}{N} \sum_{i=1}^{N}\sum_{l=1}^{L} \rho \times \left( \left( y_l^{(i)}-x_l^{(i)} \right) - r_l^{(i)} \right)
                 $
                 where \textit{S} is the target upsampling factor, $L=\log_2 S$,  $\rho = \sqrt{x^2+\epsilon^2}$ (Charbonnier penalty function, differentiable variant of L1 norm).
-
-                \item Apply the upsampling operator at the end (previous papers apply it at the beginning increasing inference and training time): \textbf{transposed convolution} or \textbf{subpixel convolution}.
                 \item Single upsampling step lead to worst performance: \textbf{reconstruct progressively} the SR image using a laplacian pyramid framework \cite{laplacianpyramid}.
         \end{itemize}
         
