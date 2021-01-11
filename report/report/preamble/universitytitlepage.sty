@@ -1,0 +1,55 @@
+\ProvidesPackage{universitytitlepage}
+\RequirePackage{etoolbox}
+
+% Define internal variables
+\newcommand{\setinstitute}[1]{\def\@institute{#1}}
+\newcommand{\setsubtitle}[1]{\def\@subtitle{#1}}
+\newcommand{\setstudentid}[1]{\def\@studentid{#1}}
+%Internal course
+\newcommand{\setcourse}[1]{\def\@course{#1}}
+%Study course
+\newcommand{\setcds}[1]{\def\@cds{#1}}
+
+% Sizes
+\def\@institutesize{\Huge}
+
+\def\@titlesize{\LARGE}
+\def\@subtitlesize{\Large}
+
+\def\@authorsize{\large}
+\def\@studentidsize{\large}
+
+\def\@cdssize{\Large}
+\def\@coursesize{\Large}
+
+\newcommand{\add}[2]{
+    % 1: text
+    % 2: size
+    \ifdef{#1}%
+    {%
+        #2 %
+        #1
+    }%
+    {}
+}
+
+\renewcommand{\maketitle}{
+\begin{titlepage}
+    \centering
+    \begin{center}
+        \add{\@institute}{\@institutesize} \\
+    \end{center}
+    \vfill
+    \add{\@cds}{\@cdssize} \\
+    \add{\@course}{\@coursesize} \\
+    \add{\@author}{\@authorsize} [ Matr.\add{\@studentid}{\@studentidsize}]
+    \vfill
+    \begin{center}
+        \textbf{\add{\@title}{\@titlesize}} \\
+        \textit{\add{\@subtitle}{\@subtitlesize}}
+    \end{center}
+    \vfill
+\end{titlepage}
+}
+
+\endinput
