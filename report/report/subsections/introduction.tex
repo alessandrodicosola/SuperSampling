@@ -1,0 +1,13 @@
+\section{Introduction}
+In computer vision the \textbf{super resolution} (hereinafter SR) task is an ill-posed problem for reconstructing a low resolution (hereinafter LR) image to an higher one (hereinafter SR - super resolution image); in order to do so an high resolution image is used (hereinafter HR).
+
+Many method proposed trying to define the images in the features space and apply linear and non-linear operators in order to learn and reconstruct the high resolution image: using random forest, linear and non-linear regressor, manifold embedding\cite{SRneighbporembedding}.
+
+Due to advancement of deep learning, SR task started to be achieved using deep neural networks: from the simplest one, SRCNN\cite{srcnn} with only three convolution for extracting and processing features used then for reconstructing the SR image to more complex ones that use short,long and dense skip connections \cite{RED}\cite{DBDN} and recursive blocks \cite{DRCN}\cite{DRRN}, attention mechanism \cite{RCAN}\cite{CSFM}, meta-learning \cite{MetaSR}, multi-levels \cite{LapSRN}\cite{MSLapSRN}. 
+
+Studies done in deep learning has lead research to understand that deeper and wider networks performs better than shallow and narrow ones as well as using residual learning; skip connections ( short,long and dense ) are used for overcoming the exploding/vanishing gradient problem and at the same time they allow to let networks converge faster; dense connection allow also to reuse features from previous stages and attention mechanism allow networks to focus on most important features (channel-wise and spatial-wise).
+
+SR task achieved with deep learning trying to learn a mapping between LR to HR images given a specific scale.
+The studies done up to now always used fixed integer scales (2x,3x,4x,\dots) but none had explored decimal scales but Meta-SR\cite{MetaSR} (using meta-learning).
+
+Therefore \textbf{Any-Scale Deep Network} (ASDN) tried to explore decimal scale in SR task learning the mapping in an end-to-end way.

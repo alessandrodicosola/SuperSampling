@@ -2,19 +2,43 @@
 
 \usepackage{import}
 
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{parskip}
+
+\usepackage{subcaption}
+\usepackage{graphicx}
+\graphicspath{{../images/}}
+
+\usepackage{cleveref}
+
+% For importing \maketitle with university parameters
 \usepackage{preamble/universitytitlepage}
 
 \author{Alessandro Dicosola}
 \setstudentid{935563}
 
 \title{Super Resolution}
-\setsubtitle{Survey Any-Scale Deep Network}
+\setsubtitle{Survey Any-Scale Deep Network (ASDN \cite{ASDN})}
 \setinstitute{Alma Mater Studiorum \\ University of Bologna}
 \setcourse{Machine Learning for Computer Vision}
 \setcds{Artificial Intelligence}
 
-
-
 \begin{document}
+% Frontal page
 \maketitle
+% TOC
+\tableofcontents
+
+% Introduction
+\import{subsections}{introduction}
+% Background: survey networks used in ASDN
+\import{subsections}{background}
+% TODO: ASDN
+
+% Bibliography
+\clearpage
+\bibliographystyle{ieeetr}
+\bibliography{../bibliography}
 \end{document}
