@@ -51,18 +51,102 @@ The \textit{Feature embedding} has \textbf{R} recursive block \cite{DRCN} \cite{
 The structure of the recursive block [\Cref{lapsrn:recursiveblock}] use a skip connection directly connected to the input and a pre-activation inside the residual path \cite{resnetidentity}.
 
 \subsubsection{Loss}
-Each level s has its own loss function and target ground truth.
-
-The \textbf{Charbonnier loss} function is :
+Both \textit{LapSRN} and \textit{MS-LapSRN} use the \textbf{Charbonnier loss}: the former use it once the latter at each level; the equation is the following:
 $$
 L_S = \frac{1}{N} \sum_{i=1}^{N}\sum_{l=1}^{L} \rho \times \left( \left( y_l^{(i)}-x_l^{(i)} \right) - r_l^{(i)} \right)
-$$
-where $S$ is the target upsampling factor, $\rho = \sqrt{x^2+\epsilon^2}$ (Charbonnier penalty function which is a differentiable L1 norm), $x_l$ is the upscaled LR image at level l, $y_l$ is the downscaled HR target image (y) at level l and $r_l$ is the residual at level l. 
+$$ where $S$ is the target upsampling factor, $\rho = \sqrt{x^2+\epsilon^2}$ (Charbonnier penalty function which is a differentiable L1 norm), $x_l$ is the upscaled LR image at level l, $y_l$ is the downscaled HR target image (y) at level l and $r_l$ is the residual at level l.
 
-The final loss is the sum of the loss for each level trained using images with different scales (\textbf{multi scales training}).
+The final loss is the sum of the loss for each level trained using images with different scales (\textbf{multi scales training}):
+$$
+L= \sum_{s \in [2,4,8]} L_s
+$$
 
 \subsubsection{Results}
 
 Here will be presented only the results of \textbf{MS-LapSRN}\cite{MSLapSRN} since it's an evolution of LapSRN.
 
-%TODO
+\paragraph{Ablation studies on pyramid structure, global residual learning and loss}
+\begin{figure}[h]
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-convergence-analysis.png}
+        \caption{Study on performance with different settings.}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-ablation-studies.png}
+        \caption{Ablation study on LapSRN.}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-contribution-studies.png}
+        \caption{Contribution of different components in LapSRN.}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-multiscale-studies.png}
+        \caption{Contribution of multi-scale supervision.}
+    \end{subfigure}
+    \caption{Performance studies done on MS-LapSRN}\label{lapsr:performance-studies}
+\end{figure}
+
+From the performance studies [\Cref{lapsr:performance-studies}] it's possible to observe the contribution of each component used for the final result: the pyramid structures allow a faster convergence, the Charbonnier loss a better performance, the global residual learning both.
+
+\paragraph{Studies on local skip connections}
+\begin{figure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-local-skip-connection-studies.png}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-local-skip-connection-graph.png}
+    \end{subfigure}
+    \caption{Local skip connection studies done on MS-LapSRN}\label{lapsr:lsc-studies}
+\end{figure}
+From the local skip connection studies [\Cref{lapsr:lsc-studies}] we can se that the best is \textit{shared source} (\textbf{SS}) which use as identity the same input.
+
+\paragraph{Studies on parameter sharing}
+\begin{figure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-paramters-studies.png}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-parameters-studies.png}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-parameters-performance.png}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-depth-studies.png}
+    \end{subfigure}
+    \caption{Studies on parameters (weights) and hyperparameters D and R on MS-LapSRN}\label{lapsr:parameters-studies}
+\end{figure}
+From the parameters studies [\Cref{lapsr:parameters-studies}] it's possible to see the effectiveness of using recursive block which allow to have a deeper network with an increase of performance without too much parameters and also a faster inference time.
+
+\paragraph{Quantitative and qualitative results}
+
+\begin{figure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-sota-results.png}
+        \caption{SOtA results up to now}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-result-urban-dataset.png}
+        \caption{Qualitative results of MS-LapSRN.}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{lapsr-multiscale-results.png}
+        \caption{Multi-scale results of MS-LapSRN}
+    \end{subfigure}
+    \caption{Quantitative and qualitative results of MS-LapSRN}\label{lapsr:qq-results}
+\end{figure}
+
+Fro the quantitative and qualitative results [\Cref{lapsr:qq-results}] we can see that overall LapSRN performs better than state-of-the-art network, indeed it is able to reconstruct finer details thanks to the multi-scale training as we can see in the figure.
