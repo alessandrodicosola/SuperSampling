@@ -50,6 +50,10 @@ The \textit{Feature embedding} has \textbf{R} recursive block \cite{DRCN} \cite{
 
 The structure of the recursive block [\Cref{lapsrn:recursiveblock}] use a skip connection directly connected to the input and a pre-activation inside the residual path \cite{resnetidentity}.
 
+Recursive block (or single convolution) allow to reduce the number of parameters and increase the depth of the network as well as the receptive field of the network in the last activation without increasing the memory footprint of the network. 
+
+% TODO: pre-activation residual block paper
+
 \subsubsection{Loss}
 Both \textit{LapSRN} and \textit{MS-LapSRN} use the \textbf{Charbonnier loss}: the former use it once the latter at each level; the equation is the following:
 $$
@@ -60,7 +64,8 @@ The final loss is the sum of the loss for each level trained using images with d
 $$
 L= \sum_{s \in [2,4,8]} L_s
 $$
-
+\subsubsection{Depth}
+The depth of the network is: $ (D \times R + 1) \times (L + 2)$ where $D$ is the number of convolutions inside each recursive block, $R$ is the number of recursive blocks, $+1$ represents the transposed convolution, $+2$ represent the convolutions that perform feature extraction and residual hallucination.
 \subsubsection{Results}
 
 Here will be presented only the results of \textbf{MS-LapSRN}\cite{MSLapSRN} since it's an evolution of LapSRN.

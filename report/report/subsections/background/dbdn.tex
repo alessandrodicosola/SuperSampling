@@ -7,9 +7,9 @@
 
 Skip connections allow to highlight one of the most important hyperparameter in deep network: the depth.
 
-But in SR task an important aspect also is the use of features learned at the beginning of the network: therefore dense connection were adopted, moreover new architecture arose such as \textit{SRDenseNet} and \textit{RDN}.
+But in SR task is important also to use the features learned at the beginning of the network: therefore dense connection were adopted, moreover new architecture arose such as \textit{SRDenseNet} and \textit{RDN}.
 
-All the previous mentioned architectures have a problem: the feature reusing is not really achieved as we can see from the \Cref{dbdn:comparison}.
+All the previous mentioned architectures have a problem: the feature reusing is not really achieved as we can see from the \Cref{dbdn:comparison} ( the concatenation in the last row use features computed before the sequence of convolutions).
 
 Therefore the aim of Deep Bi-Dense Network (DBDN) is to be able to reuse the feature in the network thanks to dense connections used along the network and within each block.
 
