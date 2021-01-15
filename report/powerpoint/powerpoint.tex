@@ -66,7 +66,7 @@
                     \item HR patches embedding is the concatenation of all luminance at each pixel
                     \item Given a LR patch find the k-NN patches on the training set $$N_q$$
                     \item Compute the reconstruction weights minimizing the reconstruction error: $$argmin_W || x_t^q - \sum_{x_s^p \in N_q} w_{qp}x_s^p ||^2$$
-                    \item Reconstruct the HR patch: $$y_t^q = \sum_{x_s^p \in N_q} w_{qp}y_s^p$$
+                    \item Reconstruct the HR patch: $$y_t^q = \sum_{y_s^p \in N_q} w_{qp}y_s^p$$
                     \item Reconstruct the image overlapping the patches ( averaging on overlapped regions)
                 \end{itemize}            
             \end{column}
@@ -85,7 +85,7 @@
             \end{column}
         \end{columns}
     }
-    % TODO: Create link to section
+
     \only<2>{
         \framesubtitle{CNN \cite[Releated works]{ASDN} \cite{SRsurvey}}
         \begin{itemize}
@@ -217,7 +217,7 @@
             \item Bi-dense connections (DAB with IDB) for learning efficiently features (since DenseNet, SRDenseNet and RDN doesn't allow previous features to be used into next blocks).
             \item IDB contains convolutions whose activations are processed with ReLu (without BN in order to maintain image details), densely connected convolutions and convolutions for compressing the input and the output (which is summed with the compressed input).
             \item CA from RCAN in order to focus on most important features.
-            \item SA from CSFM in order to focus on particular and important textures at the reconstruction.
+            \item SA from CSFM in order to focus on particular and important regions at the reconstruction.
             \item Two IRBs are activated based on the scale used for training or testing and the the final image is reconstructed using the formula seen before. 
             \item Global skip connection for including low frequency information from the input and allow the network to learn high frequency information only.
         \end{itemize}
@@ -328,6 +328,7 @@
         \begin{subfigure}{\textwidth}
             \centering
             \includegraphics[scale=0.2]{asdn-ablation-study.png}
+            \caption{Ablation studies on channel attention (CA), spatial attention (SA) and global skip connection (SC)}.
         \end{subfigure}
     \end{figure}
 \end{frame}

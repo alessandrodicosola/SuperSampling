@@ -1,4 +1,4 @@
-\subsection{Magnification-Arbitrary Network (MetaSR \cite{MetaSR})}
+\subsection{Magnification-Arbitrary Network (MetaSR \cite{MetaSR})}\label{metasr}
 The limitation of SR task using fixed integer scales are:
 \begin{itemize}
     \item real application may be necessary upsampling on continues scales (such as in medical imaging, satellite imaging, \dots ).
@@ -42,7 +42,7 @@ The \textit{Feature Learning Module} can be any state-of-the-art network while \
 The \textbf{Meta Upscale Module} contains three different modules:
 \begin{itemize}
     \item \textbf{location projector} which project pixels from HR images to LR images: $(i',j') = T(i,j) = (\lfloor\frac{i}{r}\rfloor,\lfloor\frac{j}{r}\rfloor)$ where $(i,j)$ are pixels in the HR image and $(i',j')$ are pixels in the LR image.
-    \begin{figure}[h]
+    \begin{figure}[H]
         \centering
         \includegraphics[scale=0.5]{metasr-location-projector.png}
         \caption{Location projector: each pixel in the SR image (bottom row) has an unique pixel in the LR image (top row).}

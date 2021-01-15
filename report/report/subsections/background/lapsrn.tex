@@ -1,4 +1,4 @@
-\subsection{Deep Laplacian Pyramid Network (LapSRN\cite{LapSRN}) and Multi-scale Deep Laplacian Pyramid Network (MS-LapSRN \cite{MSLapSRN})}
+\subsection{Deep Laplacian Pyramid Network (LapSRN\cite{LapSRN}) and Multi-scale Deep Laplacian Pyramid Network (MS-LapSRN \cite{MSLapSRN})}\label{lapsrn}
 
 \subsubsection{Features}
 \textbf{LapSRN} in order to be able to reconstruct the SR image uses:
@@ -51,8 +51,6 @@ The \textit{Feature embedding} has \textbf{R} recursive block \cite{DRCN} \cite{
 The structure of the recursive block [\Cref{lapsrn:recursiveblock}] use a skip connection directly connected to the input and a pre-activation inside the residual path \cite{resnetidentity}.
 
 Recursive block (or single convolution) allow to reduce the number of parameters and increase the depth of the network as well as the receptive field of the network in the last activation without increasing the memory footprint of the network. 
-
-% TODO: pre-activation residual block paper
 
 \subsubsection{Loss}
 Both \textit{LapSRN} and \textit{MS-LapSRN} use the \textbf{Charbonnier loss}: the former use it once the latter at each level; the equation is the following:
