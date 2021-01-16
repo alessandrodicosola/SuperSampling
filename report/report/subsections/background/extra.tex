@@ -111,3 +111,11 @@ The researchers experimentally prove the correctness of the pre-activation resid
     \includegraphics[width=\textwidth, keepaspectratio]{Identity-what-they-tried.png}
     \caption{Different combinations of disposition of batch normalization and ReLU}
 \end{figure}
+
+%====================================================================================
+
+\subsubsection{Pixel Shuffle: sub-pixel convolution}
+
+The \textbf{Pixel Shuffle} rearrange the features $C \cdot r^2 \times H \times W$ learned into the LR space into $C \times 2 \cdot H \times 2 \cdot W$ activations learned into the HR space.
+
+In \cite{eli5subpixelconvolution}, the authors proved that transposed convolution and subpixel convolution return the same result and convolving the features map with a convolution ($r^2 \cdot C_{out}$, $C_{in}$, $k_H$, $k_W$) where r is the upscale factor and then rearrange the activations in order to have an activation whose size is $(r \cdot H, r \cdot W)$ is the same as apply a transposed convolution ($C_{out}$, $C_{in}$, $r \cdot k_H$, $r \cdot k_W$)  ( fractional strided convolution where the input is modified inserting zeros in between and padded in order to have an output upscaled with respect the input) 
