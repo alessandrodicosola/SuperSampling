@@ -83,10 +83,8 @@ Using an identity mapping in the output then $x_{l+1} = y_l = x_l + F(x_l,W_l)$ 
 An intuition of why this is used in \Cref{lapsrn} and DRRN\cite{DRRN} can be seen in this results: since the skip connection allow to flow the real input (the LR image) than the network is able to take apart low frequency information better.
 
 The backpropagation lead to:
-$
-\frac{\partial\epsilon}{\partial x_l} = \frac{\partial\epsilon}{\partial x_L} \frac{\partial x_L}{\partial x_l} = \frac{\partial\epsilon}{\partial x_L} \left(1 + \frac{\partial}{\partial x_l} \sum_{i=l}^{L-1} F(x_i,W_i)\right)
-$
-which is never 0 because is unlikely that $\frac{\partial\epsilon}{\partial x_l}$ is always $-1$ for all minibatches.
+$\frac{\partial\epsilon}{\partial x_l} = \frac{\partial\epsilon}{\partial x_L} \frac{\partial x_L}{\partial x_l} = \frac{\partial\epsilon}{\partial x_L} \left(1 + \frac{\partial}{\partial x_l} \sum_{i=l}^{L-1} F(x_i,W_i)\right)$
+which is never 0 because is unlikely that $ \frac{\partial}{\partial x_l} \sum_{i=l}^{L-1} F(x_i,W_i)$ is always $-1$ for all minibatches.
 
 \paragraph{Studies done on different residual block}
 In order to prove the mathematical claims they experimented with different combination whose result are worse than the proposed residual block.
@@ -114,7 +112,7 @@ The researchers experimentally prove the correctness of the pre-activation resid
 
 %====================================================================================
 
-\subsubsection{Pixel Shuffle: sub-pixel convolution}
+\subsubsection{Pixel Shuffle: sub-pixel convolution \cite{subpixelconvolution}}
 
 The \textbf{Pixel Shuffle} rearrange the features $C \cdot r^2 \times H \times W$ learned into the LR space into $C \times 2 \cdot H \times 2 \cdot W$ activations learned into the HR space.
 
