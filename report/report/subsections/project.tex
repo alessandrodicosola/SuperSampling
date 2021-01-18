@@ -1,0 +1,29 @@
+\section{Project}
+
+\subsection{Hardware}
+The following hardware is used:
+\begin{itemize}
+    \item GTX1060 (6 GB)
+\end{itemize}
+
+\subsection{Architecture configuration}
+\begin{figure}
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{project-tuning-random-configs.png}
+        \caption{Training time of different random configurations. There are many other configurations missing due to \textit{out of memory} error.}
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{project-tuning-batch-time.png}        
+        \caption{Comparison between the training time of 1 epoch of the default configuration, using the trick and not using the trick.}\label{project:random-configurations:trick}
+    \end{subfigure}
+
+    \caption{Trining time of 1 epoch. The name contains: E is \textit{epoch}, B is \textit{batch size}, S is \textit{save checkpoint} and the network parameters.}\label{project:random-configurations}    
+\end{figure}
+
+\textbf{ASDN} is using a bi-dense connection this means a lot of memory is used for storing intermediate activations as well as gradients: the default configuration, number of dense attention block 16 and number of intra connected layers 8, is not suitable for my computer.
+
+In order to use the default configuration an implementation trick can be used (\textbf{save checkpoint}\footnote{\href{https://pytorch.org/docs/stable/checkpoint.html}{PyTorch checkpoint}}): avoid to store gradient and activations during the forward pass and recompute them during the backward pass; but this increase the training time of a \textbf{single batch}.
+
+\Cref{project:random-configurations} point out the inability to handle a batch size greater than 8 or DAB and IDBs greater than 5 (also reducing the amount of features computed by each DAB). Moreover we can see the difference between using the save checkpoint trick (\textbf{S=2}) and not using it (\textbf{S=1}) in \Cref{project:random-configurations:trick}: the default configuration needs 18m in order to complete an epoch (of course it doesn't work if the trick is not used) and using the trick slows the training time.
