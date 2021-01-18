@@ -33,8 +33,8 @@ class PSNR(torch.nn.Module):
             raise RuntimeError(
                 f"Sizes are mismatching: (predictions) {prediction.size()} != (target) {target.size()}")
 
-        prediction = prediction.detach()
-        target = target.detach()
+        prediction = prediction
+        target = target
 
         # scale: now max value is 1
         prediction = prediction / self.max_pixel_value

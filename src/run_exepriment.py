@@ -15,6 +15,7 @@ from base.metrics.PSNR import PSNR
 from base.metrics.SSIM import SSIM
 from datasets.ASDNDataset import ASDNDataset, collate_fn, NormalizeInverse
 import models.ASDN
+
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 from utility import get_datasets_dir
 
@@ -65,7 +66,7 @@ def fix_randomness(seed: int):
     torch.backends.cudnn.deterministic = True
 
 
-def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_size: int, **model_kwargs):
+def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_size: int, save_checkpoints: int = 1, **model_kwargs):
     """Run the experiment with specified epochs
 
     Args:
@@ -87,12 +88,11 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
     Returns:
         error : bool
     """
-    fix_randomness(2020)
-
     # set experiment string
+    models.ASDN.set_save_checkpoints(save_checkpoints)
     experiment += f"_E{epochs}_B{batch_size}_S{models.ASDN._SEGMENTS_GRADIENT_CHECKPOINT}"
-    model_str = "_".join(map(lambda elem: f"{elem[0]}{elem[1]}", model_kwargs.items()))
-    experiment += f"_{model_str}" if len(model_kwargs) > 0 else ""
+    if len(model_kwargs) > 0:
+        experiment += "_".join(map(lambda elem: f"{elem[0]}{elem[1]}", model_kwargs.items()))
 
     print(f"Experimenting with: {experiment}")
 
@@ -178,4 +178,5 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
 
 
 if __name__ == "__main__":
-    pass
+    run("BATCH_TIME", n_workers=1,pin_memory=True,epochs=1,batch_size=8, n_dab=5,n_intra_layers=4,out_channels_dab=56, save_checkpoints=1)
+

@@ -9,6 +9,8 @@ from torch.utils.tensorboard import SummaryWriter
 import base.logging_
 from base.Callbacks import Callback
 
+import math
+
 
 class TensorboardCallback(Callback):
     """Callback for writing tensorboard summary
@@ -60,29 +62,38 @@ class TensorboardCallback(Callback):
                 self.writer.add_scalar(f"Batches/Val/{key}", value, global_step)
 
         if self.print_images:
+            nrow = math.floor(math.sqrt(kwargs.get('batch_size')))
+
             # TODO Check this
             if kwargs.get('current_epoch') % self.print_images_frequency == 0 and 'val_state' in kwargs:
                 X = kwargs.get("in_")
                 if isinstance(X, (List, Tuple)):
                     for index, input in enumerate(filter(lambda elem: isinstance(elem, Tensor), X)):
-                        grid_in = torchvision.utils.make_grid(self.get_tensor(input.detach()), nrow=4)
+                        # grid_in = torchvision.utils.make_grid(input.detach(), nrow=4)
+                        # self.writer.add_image(f'Epoch/Images/Input{index}_original', grid_in,
+                        #                       kwargs.get('current_epoch'))
+
+                        grid_in = torchvision.utils.make_grid(self.get_tensor(input.detach()), nrow=nrow)
                         self.writer.add_image(f'Epoch/Images/Input{index}', grid_in, kwargs.get('current_epoch'))
                     del X
                 elif isinstance(X, Tensor):
-                    grid_in = torchvision.utils.make_grid(self.get_tensor(X.detach()), nrow=4)
+                    # grid_in = torchvision.utils.make_grid(X.detach(), nrow=4)
+                    # self.writer.add_image(f'Epoch/Images/Input_original', grid_in, kwargs.get('current_epoch'))
+
+                    grid_in = torchvision.utils.make_grid(self.get_tensor(X.detach()), nrow=nrow)
                     self.writer.add_image('Epoch/Images/Input', grid_in, kwargs.get('current_epoch'))
                     del X
                 else:
                     raise RuntimeError("Unknown type.")
 
-                grid_out = torchvision.utils.make_grid(self.get_tensor(kwargs.get('out')), nrow=4)
+                grid_out = torchvision.utils.make_grid(self.get_tensor(kwargs.get('out')), nrow=nrow)
 
                 self.writer.add_image('Epoch/Images/Output', grid_out, kwargs.get('current_epoch'))
 
     def __init__(self, log_dir: str, print_images=False, print_images_frequency: int = 10, denormalize_fn=None):
         super(TensorboardCallback, self).__init__()
         self.log_dir = log_dir
-        self.writer : SummaryWriter = None
+        self.writer: SummaryWriter = None
 
         self.denormalize_fn = denormalize_fn
         self.print_images = print_images

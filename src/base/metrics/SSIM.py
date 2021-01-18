@@ -103,8 +103,8 @@ class SSIM(torch.nn.Module):
             https://github.com/photosynthesis-team/piq/blob/5f907063f5abe357173a5bed1126b07d46f1b6ac/piq/ssim.py#L350
 
         """
-        prediction = prediction.detach()
-        target = target.detach()
+        prediction = prediction
+        target = target
 
         if prediction.size() != target.size():
             raise RuntimeError("Size mismatching between prediction and target.")

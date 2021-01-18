@@ -16,6 +16,9 @@ from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresenta
 _SEGMENTS_GRADIENT_CHECKPOINT = 1
 _ENABLE_GRADIENT_CHECKPOINT = _SEGMENTS_GRADIENT_CHECKPOINT > 1
 
+def set_save_checkpoints(n : int):
+    _SEGMENTS_GRADIENT_CHECKPOINT = n
+    _ENABLE_GRADIENT_CHECKPOINT = _SEGMENTS_GRADIENT_CHECKPOINT > 1
 
 # region DenseLayer
 class DenseLayer(torch.nn.Module):

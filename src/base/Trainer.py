@@ -309,6 +309,14 @@ class Trainer:
             if self.callback:
                 val_loss = epoch_loss / total_samples
                 val_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
+
+                if isinstance(X, torch.Tensor):
+                    X = X.detach()
+                elif isinstance(X, List):
+                    X = [x.detach() if isinstance(x,torch.Tensor) else x for x in X]
+                else:
+                    raise RuntimeError("Invalid type for X")
+
                 self.callback.end_batch(
                     **self._create_args_for_callback(batch_index=index_batch,
                                                      batch_size=BATCH_SIZE,
@@ -402,6 +410,7 @@ class Trainer:
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
+
 
             if self.callback:
                 self.callback.end_epoch(**self._create_args_for_callback(resuming=resuming,
@@ -793,8 +802,8 @@ class Trainer:
                 "metric": self.metric,
                 "callback": self.callback,
                 "device": self.device,
-                #
-                "epoch": last_epoch,
+                # early stopping call save_experiment at end_epoch therefore we need to increment by one
+                "epoch": last_epoch + 1,
                 "loss": last_loss,
                 #
                 "current_history": current_history
