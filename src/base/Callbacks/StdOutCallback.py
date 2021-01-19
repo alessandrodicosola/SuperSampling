@@ -23,7 +23,7 @@ class StdOutCallback(Callback):
 
         torch.cuda.synchronize()
 
-        print(f"EPOCH {kwargs.get('epoch') + 1} ( elapsed time (s) :{self.start.elapsed_time(self.end) // 1000} )")
+        print(f"Epoch {kwargs.get('epoch') + 1}/{kwargs.get('epochs')} ( elapsed time (s) :{self.start.elapsed_time(self.end) // 1000} )")
         print(train_state)
         print(val_state)
 
