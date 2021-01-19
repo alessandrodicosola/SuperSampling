@@ -37,6 +37,7 @@ class Callback(ABC):
         Keyword Args:
             resuming
             epoch
+            epochs
             train_state
             val_state
             current_history
