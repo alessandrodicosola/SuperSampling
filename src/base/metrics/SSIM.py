@@ -1,11 +1,11 @@
 from typing import Tuple
-
+import torch
 import torch.nn
 import math
 import torch.nn.functional
 
 
-def gaussian_filter(kernel_size: int, sigma: float = None):
+def gaussian_filter(kernel_size: int, sigma: float = None) -> torch.Tensor:
     """
     Compute gaussian kernel with kernel size and sigma.
     If sigma is None it's automatically computed.
@@ -67,12 +67,13 @@ class SSIM(torch.nn.Module):
 
     def __init__(self, kernel_size_sigma: Tuple[int, float] = (11, 1.5),
                  max_pixel_value: float = 255.,
+                 image_channels=3,
                  K1_K2: Tuple[float, float] = (0.01, 0.03),
                  alpha_beta_gamma: Tuple[float, float, float] = (1, 1, 1),
                  reduction=None):
         super(SSIM, self).__init__()
         if not reduction:
-            raise RuntimeError("Trainer supports only metrics that returns float")
+            raise RuntimeError("Trainer supports only metrics that returns float: .items() at the end.")
         self.reduction = reduction
 
         K1, K2 = K1_K2
@@ -85,7 +86,9 @@ class SSIM(torch.nn.Module):
         kernel_size, sigma = kernel_size_sigma
 
         # register the gaussian kernel in order to be moved to gpu when .to is called
-        self.register_buffer('gaussian_kernel', gaussian_filter(kernel_size=kernel_size, sigma=sigma), persistent=True)
+        self.register_buffer('gaussian_kernel',
+                             gaussian_filter(kernel_size=kernel_size, sigma=sigma).repeat(image_channels, 1, 1, 1),
+                             persistent=True)
 
     @torch.no_grad()
     def forward(self, prediction: torch.Tensor, target: torch.Tensor):
@@ -133,13 +136,14 @@ class SSIM(torch.nn.Module):
         else:
             return ssim_batch
 
+    @torch.no_grad()
     def _compute_ssim_single(self, prediction: torch.Tensor, target: torch.Tensor, channels: int):
         """
         Compute SSIM between two batches of images
 
         Notes
             Using groups=channels in conv2d allow to apply kernel at each channel independently
-
+            @torchno_grad has safety measure
         Args:
             prediction: batches of predicted images
             target: batches of ground truth images
@@ -148,18 +152,18 @@ class SSIM(torch.nn.Module):
         Returns:
             SSIM Tensor (B,C)
         """
-        self.gaussian_kernel = self.gaussian_kernel.repeat(channels, 1, 1, 1)
-
         mu_x = torch.nn.functional.conv2d(input=prediction, weight=self.gaussian_kernel, stride=1, padding=0,
                                           groups=channels)
 
         mu_y = torch.nn.functional.conv2d(input=target, weight=self.gaussian_kernel, stride=1, padding=0,
                                           groups=channels)
+
         mu_x_sq = mu_x.pow(2)
         mu_y_sq = mu_y.pow(2)
         mu_xy = mu_x * mu_y
         del mu_x
         del mu_y
+
         sigma_x_sq = torch.nn.functional.conv2d(input=prediction * prediction, weight=self.gaussian_kernel, stride=1,
                                                 padding=0,
                                                 groups=channels) - mu_x_sq
