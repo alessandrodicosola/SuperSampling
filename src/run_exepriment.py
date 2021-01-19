@@ -19,6 +19,8 @@ import models.ASDN
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 from utility import get_datasets_dir
 
+import traceback
+
 
 class _RepeatSampler(object):
     """ Sampler that repeats forever.
@@ -66,7 +68,8 @@ def fix_randomness(seed: int):
     torch.backends.cudnn.deterministic = True
 
 
-def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_size: int, save_checkpoints: int = 1, **model_kwargs):
+def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_size: int, save_checkpoints: int = 1,
+        **model_kwargs):
     """Run the experiment with specified epochs
 
     Args:
@@ -130,18 +133,18 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
     VAL_DATALOADER = FastDataLoader(dataset=VAL_DATASET, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS,
                                     collate_fn=ASDN_COLLATE_FN, pin_memory=PIN_MEMORY)
 
-    # Prepare model with default parameters
+    # Prepare model with specified parameters
     ASDN_ = models.ASDN.ASDN(input_image_channels=3, lfr=LFR, **model_kwargs).to(DEVICE)
 
     # lr=3e-4 as suggested in https://karpathy.github.io/2019/04/25/recipe/
     ADAM = Adam(ASDN_.parameters(), lr=3e-4, betas=(0.9, 0.999))
 
-    # Define the criterion
+    # Define the criterion: L1 mean over the batch
     L1 = L1Loss(reduction='mean').to(DEVICE)
 
     # Define the metrics
     # SSIM cause out of memory both on GPU and on CPU
-    METRICS = PSNR(max_pixel_value=1.0, reduction='mean')  # SSIM(max_pixel_value=1.0, reduction='mean')]
+    METRICS = [PSNR(max_pixel_value=1.0, reduction='mean'), SSIM(max_pixel_value=1.0, reduction='mean')]
 
     # Define the trainer
     TRAINER = Trainer(experiment=experiment, model=ASDN_, optimizer=ADAM, criterion=L1, metric=METRICS,
@@ -160,7 +163,7 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
     try:
         TRAINER.fit(train_loader=TRAIN_DATALOADER, val_loader=VAL_DATALOADER, epochs=epochs)
     except (RuntimeError, ValueError) as e:
-        tensorboard_callback.writer.add_text("Error", str(e))
+        tensorboard_callback.writer.add_text("Error", str(e), traceback.format_exc())
         error = True
     finally:
         # cleanup
@@ -178,5 +181,7 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
 
 
 if __name__ == "__main__":
-    run("BATCH_TIME", n_workers=1,pin_memory=True,epochs=1,batch_size=8, n_dab=5,n_intra_layers=4,out_channels_dab=56, save_checkpoints=1)
-
+    fix_randomness(2020)
+    run("OVERFITTING", n_workers=4, pin_memory=True, save_checkpoints=1, epochs=100, batch_size=8, n_dab=5,
+        n_intra_layers=4,
+        out_channels_dab=32)

@@ -1,4 +1,5 @@
 from functools import partial
+from pathlib import Path
 from typing import Tuple
 from unittest import TestCase, skip
 import unittest
@@ -11,9 +12,11 @@ from tests.pytorch_test import PyTorchTest
 # @skip("Done and it's working. Skipped because it's expensive.")
 class TestASDNDataset(PyTorchTest):
     def before(self):
-        BATCH_SIZE = 4
+        BATCH_SIZE = 8
         PATCH_SIZE = 48
         LFR = LaplacianFrequencyRepresentation(1, 2, 11)
+        self.lfr = LFR
+
         self.DATASET = ASDNDataset("DIV2K_valid_HR", patch_size=PATCH_SIZE, lfr=LFR)
         self.COLLATE_FN = partial(collate_fn, lfr=LFR)
 
@@ -22,7 +25,10 @@ class TestASDNDataset(PyTorchTest):
                                      collate_fn=self.COLLATE_FN)
         self.denormalize = NormalizeInverse(self.DATASET.mean, self.DATASET.std)
 
+        self.path = Path("test_images")
     def after(self):
+        # import shutil
+        # shutil.rmtree(self.path)
         pass
 
     def test_get_collate_fn(self):
@@ -44,31 +50,34 @@ class TestASDNDataset(PyTorchTest):
 
         for index, ((scale, low_res_batch_i_minus_1, low_res_batch_i), pyramid_i) in enumerate(
                 tqdm(self.DATALOADER)):
-            if index == 0:
-                low_res_batch_i_minus_1 = self.denormalize(low_res_batch_i_minus_1)
-                low_res_batch_i = self.denormalize(low_res_batch_i)
-                pyramid_i = self.denormalize(pyramid_i)
+            low_res_batch_i_minus_1 = self.denormalize(low_res_batch_i_minus_1)
+            low_res_batch_i = self.denormalize(low_res_batch_i)
+            pyramid_i = self.denormalize(pyramid_i)
 
-                MAX_IMAGES = 16
-                N_ROW = 4
 
-                plt.figure(figsize=(10, 30))
+            N_ROW = 4
 
-                plt.subplot(311)
-                plt.imshow(make_grid(low_res_batch_i_minus_1[:MAX_IMAGES], nrow=N_ROW).permute(1, 2, 0))
-                plt.title("low_res_batch_i_minus_1")
+            plt.figure(figsize=(10, 30))
 
-                plt.subplot(312)
-                plt.imshow(make_grid(low_res_batch_i[:MAX_IMAGES], nrow=N_ROW).permute(1, 2, 0))
-                plt.title("low_res_batch_i")
+            plt.subplot(311)
+            plt.imshow(make_grid(low_res_batch_i_minus_1, nrow=N_ROW).permute(1, 2, 0))
+            plt.title("low_res_batch_i_minus_1")
 
-                plt.subplot(313)
-                plt.imshow(make_grid(pyramid_i[:MAX_IMAGES], nrow=N_ROW).permute(1, 2, 0))
-                plt.title("Ground truth i")
+            plt.subplot(312)
+            plt.imshow(make_grid(low_res_batch_i, nrow=N_ROW).permute(1, 2, 0))
+            plt.title("low_res_batch_i")
 
-                plt.show()
-            else:
-                break
+            plt.subplot(313)
+            plt.imshow(make_grid(pyramid_i, nrow=N_ROW).permute(1, 2, 0))
+            plt.title("Ground truth i")
+
+
+            if not self.path.exists():
+                self.path.mkdir(parents=True)
+            plt.savefig(self.path / f"img{index}_scale{scale}.pdf", format='pdf')
+
+    def test_scale(self):
+        print(self.lfr.get_for(1.06621))
 
 
 if __name__ == "__main__":
