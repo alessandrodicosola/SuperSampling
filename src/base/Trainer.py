@@ -82,6 +82,14 @@ class Trainer:
             # if device is None model and criterion are not in the same device
             self.model = model.to(device)
             self.criterion = criterion.to(device)
+            self.device = device
+        else:
+            self.model = model
+            self.criterion = criterion
+            self.metric = metric
+            self.device = device
+
+            # TODO: Check me
             # move metric if is a module
             # Initialize metrics
             if isinstance(metric, torch.nn.Module):
@@ -92,12 +100,7 @@ class Trainer:
             elif (isinstance(metric, Dict)):
                 self.metric = {key: (metric_fn.to(device) if isinstance(metric_fn, torch.nn.Module) else metric_fn) for
                                key, metric_fn in metric.items()}
-            self.device = device
-        else:
-            self.model = model
-            self.criterion = criterion
-            self.metric = metric
-            self.device = device
+
 
         # set TrainingState type (it's dynamic: it changes with metric)
         # TrainingState(loss,metric1,...,metric_n)
@@ -311,9 +314,9 @@ class Trainer:
                 val_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
 
                 if isinstance(X, torch.Tensor):
-                    X = X.detach()
+                    X = X.detach().to(self.device)
                 elif isinstance(X, List):
-                    X = [x.detach() if isinstance(x,torch.Tensor) else x for x in X]
+                    X = [x.detach().to(self.device) if isinstance(x,torch.Tensor) else x for x in X]
                 else:
                     raise RuntimeError("Invalid type for X")
 
@@ -415,6 +418,7 @@ class Trainer:
             if self.callback:
                 self.callback.end_epoch(**self._create_args_for_callback(resuming=resuming,
                                                                          epoch=epoch,
+                                                                         epochs=epochs,
                                                                          train_state=train_state,
                                                                          val_state=val_state,
                                                                          current_history=history)
