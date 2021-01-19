@@ -42,28 +42,29 @@ def collate_fn(batch, lfr: LaplacianFrequencyRepresentation):
     level_i_minus_1, level_i = lfr.get_for(scale)
 
     input, pyramid_batch = zip(*batch)
-
     # create the input batch
     low_res_batch = torch.stack(input)
 
     # interpolated the LR input for forwarding correctly inside the network
     low_res_batch_i = interpolating_fn(low_res_batch, scale_factor=level_i.scale)
 
-    low_res_batch_i_minus_1 = interpolating_fn(low_res_batch, scale_factor=level_i_minus_1.scale)
+    if level_i_minus_1.index == 0:
+        # found bug:  level i-1 contains empty images interpolating usin scale as factor
+        low_res_batch_i_minus_1 = low_res_batch
+    else:
+        low_res_batch_i_minus_1 = interpolating_fn(low_res_batch, scale_factor=level_i_minus_1.scale)
 
     # create the ground truth for the loss
     pyramid_i = []
-    pyramid_i_minus_1 = []
 
     for elem in pyramid_batch:
         assert isinstance(elem, list)
+        assert len(elem) == lfr.count
+
         laplacian_i = elem[level_i.index]
-        laplacian_i_minus_1 = elem[level_i_minus_1.index]
         pyramid_i.append(laplacian_i)
-        pyramid_i_minus_1.append(laplacian_i_minus_1)
 
     pyramid_i = torch.stack(pyramid_i)
-    # pyramid_i_minus_1 = torch.stack(pyramid_i_minus_1)
 
     # return (X,y)
     return (scale, low_res_batch_i_minus_1, low_res_batch_i), pyramid_i
