@@ -16,9 +16,11 @@ from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresenta
 _SEGMENTS_GRADIENT_CHECKPOINT = 1
 _ENABLE_GRADIENT_CHECKPOINT = _SEGMENTS_GRADIENT_CHECKPOINT > 1
 
-def set_save_checkpoints(n : int):
+
+def set_save_checkpoints(n: int):
     _SEGMENTS_GRADIENT_CHECKPOINT = n
     _ENABLE_GRADIENT_CHECKPOINT = _SEGMENTS_GRADIENT_CHECKPOINT > 1
+
 
 # region DenseLayer
 class DenseLayer(torch.nn.Module):
@@ -215,8 +217,9 @@ class FeatureMappingBranch(torch.nn.Module):
       final_output: the final output channels after the concatenation of all previous channels
     """
 
-    def __init__(self, in_channels, low_level_features, n_dab, out_channels_dab, intra_layer_output_features,
-                 n_intra_layers, reduction):
+    def __init__(self, in_channels: int, low_level_features: int, n_dab: int, out_channels_dab: int,
+                 intra_layer_output_features: int,
+                 n_intra_layers: int, reduction: int):
         super(FeatureMappingBranch, self).__init__()
 
         self.final_output = low_level_features + n_dab * out_channels_dab
@@ -339,7 +342,7 @@ class ASDN(BaseModule):
         self.feature_mapping_branch = FeatureMappingBranch(in_channels=input_image_channels,
                                                            low_level_features=FMB_kwargs.get("low_level_features", 64),
                                                            n_dab=FMB_kwargs.get("n_dab", 16),
-                                                           out_channels_dab=FMB_kwargs.get("out_compressed_channels",
+                                                           out_channels_dab=FMB_kwargs.get("out_channels_dab",
                                                                                            64),
                                                            intra_layer_output_features=FMB_kwargs.get(
                                                                "intra_layer_output_features", 64),
