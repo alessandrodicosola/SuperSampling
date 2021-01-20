@@ -25,6 +25,23 @@ class TensorboardCallback(Callback):
     def start_epoch(self, *args, **kwargs):
         self.writer = SummaryWriter(self.log_dir)
 
+    @staticmethod
+    def get_plot_train_val(train, val):
+        assert len(train) == len(val)
+
+        import matplotlib.pyplot as plt
+
+        x = range(1, len(train) + 1)
+        fig, axis = plt.subplots()
+        axis.set_xlabel("Epochs")
+        axis.set_ylabel("Loss")
+
+        axis.plot(x, train, color="tab:blue", label='train')
+        axis.plot(x, val, color="tab:orange", label='val')
+
+        axis.legend()
+        return fig
+
     def end_epoch(self, *args, **kwargs):
         epoch = kwargs.get('epoch')
 
@@ -36,7 +53,12 @@ class TensorboardCallback(Callback):
         for key, value in val_state._asdict().items():
             self.writer.add_scalar(f"Epoch/Val/{key}", value, epoch)
 
-        self.writer.add_scalar(f"Hyperparamters/lr", kwargs.get('optimizer').param_groups[0]['lr'], epoch)
+        self.train_losses.append(train_state.loss)
+        self.val_losses.append(val_state.loss)
+
+        self.writer.add_figure("Epoch/TrainVal", TensorboardCallback.get_plot_train_val(self.train_losses, self.val_losses), epoch)
+
+        self.writer.add_scalar("Hyperparamters/lr", kwargs.get('lr'), epoch)
         self.writer.close()
 
     def start_batch(self, *args, **kwargs):
@@ -72,21 +94,19 @@ class TensorboardCallback(Callback):
                         # grid_in = torchvision.utils.make_grid(input.detach(), nrow=4)
                         # self.writer.add_image(f'Epoch/Images/Input{index}_original', grid_in,
                         #                       kwargs.get('current_epoch'))
-
-                        grid_in = torchvision.utils.make_grid(self.get_tensor(input.detach()), nrow=nrow)
+                        grid_in = torchvision.utils.make_grid(self.get_tensor(input), nrow=nrow).clamp(0, 1)
                         self.writer.add_image(f'Epoch/Images/Input{index}', grid_in, kwargs.get('current_epoch'))
                     del X
                 elif isinstance(X, Tensor):
                     # grid_in = torchvision.utils.make_grid(X.detach(), nrow=4)
                     # self.writer.add_image(f'Epoch/Images/Input_original', grid_in, kwargs.get('current_epoch'))
-
-                    grid_in = torchvision.utils.make_grid(self.get_tensor(X.detach()), nrow=nrow)
+                    grid_in = torchvision.utils.make_grid(self.get_tensor(X), nrow=nrow).clamp(0, 1)
                     self.writer.add_image('Epoch/Images/Input', grid_in, kwargs.get('current_epoch'))
                     del X
                 else:
                     raise RuntimeError("Unknown type.")
 
-                grid_out = torchvision.utils.make_grid(self.get_tensor(kwargs.get('out')), nrow=nrow)
+                grid_out = torchvision.utils.make_grid(self.get_tensor(kwargs.get('out')), nrow=nrow).clamp(0, 1)
 
                 self.writer.add_image('Epoch/Images/Output', grid_out, kwargs.get('current_epoch'))
 
@@ -98,6 +118,10 @@ class TensorboardCallback(Callback):
         self.denormalize_fn = denormalize_fn
         self.print_images = print_images
         self.print_images_frequency = print_images_frequency
+
+        # TODO: Find a better way
+        self.train_losses = []
+        self.val_losses = []
 
     def get_tensor(self, tensor: Tensor):
         return self.denormalize_fn(tensor) if self.denormalize_fn else tensor
