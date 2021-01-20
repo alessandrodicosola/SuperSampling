@@ -46,10 +46,12 @@ def collate_fn(batch, lfr: LaplacianFrequencyRepresentation):
     low_res_batch = torch.stack(input)
 
     # interpolated the LR input for forwarding correctly inside the network
+    # interpolating bicubic cause overshot => clamp between min and max
+
     low_res_batch_i = interpolating_fn(low_res_batch, scale_factor=level_i.scale)
 
     if level_i_minus_1.index == 0:
-        # found bug:  level i-1 contains empty images interpolating usin scale as factor
+        # found bug:  level i-1 contains empty images interpolating using scale 1.xxxxx as factor
         low_res_batch_i_minus_1 = low_res_batch
     else:
         low_res_batch_i_minus_1 = interpolating_fn(low_res_batch, scale_factor=level_i_minus_1.scale)

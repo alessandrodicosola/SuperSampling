@@ -60,25 +60,21 @@ class TestASDNDataset(PyTorchTest):
             plt.figure(figsize=(10, 30))
 
             plt.subplot(311)
-            plt.imshow(make_grid(low_res_batch_i_minus_1, nrow=N_ROW).permute(1, 2, 0))
+            plt.imshow(make_grid(low_res_batch_i_minus_1, nrow=N_ROW,normalize=True).permute(1, 2, 0))
             plt.title("low_res_batch_i_minus_1")
 
             plt.subplot(312)
-            plt.imshow(make_grid(low_res_batch_i, nrow=N_ROW).permute(1, 2, 0))
+            plt.imshow(make_grid(low_res_batch_i, nrow=N_ROW,normalize=True).permute(1, 2, 0))
             plt.title("low_res_batch_i")
 
             plt.subplot(313)
-            plt.imshow(make_grid(pyramid_i, nrow=N_ROW).permute(1, 2, 0))
+            plt.imshow(make_grid(pyramid_i, nrow=N_ROW,normalize=True).permute(1, 2, 0))
             plt.title("Ground truth i")
 
 
             if not self.path.exists():
                 self.path.mkdir(parents=True)
             plt.savefig(self.path / f"img{index}_scale{scale}.pdf", format='pdf')
-
-    def test_scale(self):
-        print(self.lfr.get_for(1.06621))
-
 
 if __name__ == "__main__":
     unittest.main()
