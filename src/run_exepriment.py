@@ -68,7 +68,7 @@ def fix_randomness(seed: int):
     torch.backends.cudnn.deterministic = True
 
 
-def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_size: int, save_checkpoints: int = 1,
+def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_size: int, save_checkpoints: int,
         **model_kwargs):
     """Run the experiment with specified epochs
 
@@ -163,7 +163,7 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
     try:
         TRAINER.fit(train_loader=TRAIN_DATALOADER, val_loader=VAL_DATALOADER, epochs=epochs)
     except (RuntimeError, ValueError) as e:
-        tensorboard_callback.writer.add_text("Error", str(e), traceback.format_exc())
+        print(str(e))
         error = True
     finally:
         # cleanup
@@ -180,8 +180,35 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
     return error
 
 
-if __name__ == "__main__":
+def batch_time_default():
     fix_randomness(2020)
-    run("OVERFITTING", n_workers=4, pin_memory=True, save_checkpoints=1, epochs=100, batch_size=8, n_dab=5,
-        n_intra_layers=4,
-        out_channels_dab=32)
+    run("BATCH_TIME", n_workers=0, pin_memory=False, save_checkpoints=2, epochs=1, batch_size=4)
+
+
+def batch_time_comparison():
+    fix_randomness(2020)
+
+    model_kwargs = {
+        "n_dab":5,
+        "n_intra_layers":5,
+        "out_channels_dab":32,
+        "intra_layer_output_features":40
+    }
+
+    # no save checkpoint
+    run("BATCH_TIME", n_workers=2, pin_memory=True, batch_size=8, save_checkpoints=1, epochs=1, **model_kwargs)
+    # save checkpoint
+    run("BATCH_TIME", n_workers=2, pin_memory=True, batch_size=8, save_checkpoints=2, epochs=1, **model_kwargs)
+
+def overfitting():
+    model_kwargs = {
+        "n_dab": 8,
+        "n_intra_layers": 4,
+        "out_channels_dab": 32,
+        "intra_layer_output_features": 32
+    }
+    fix_randomness(2020)
+    run("OVERFITTING", n_workers=4, pin_memory=True, save_checkpoints=1, epochs=100, batch_size=8, **model_kwargs)
+
+if __name__ == "__main__":
+    overfitting()

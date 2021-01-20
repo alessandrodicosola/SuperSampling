@@ -10,7 +10,7 @@ import random
 def tune(**model_kwargs):
     # fix min batch size to 8 in orer to have at most 100 num batches per epoch such that the training time is not too huge
     for batch_size in reversed(range(8, 16 + 1, 4)):
-        error = run("TUNING", epochs=1, n_workers=1, pin_memory=True, batch_size=batch_size, save_checkpoints=1,
+        error = run("TUNING", epochs=1, n_workers=2, pin_memory=True, batch_size=batch_size, save_checkpoints=1,
                     **model_kwargs)
 
         # if not error best batch_size is found, no need to reduce it.
