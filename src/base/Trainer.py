@@ -31,7 +31,6 @@ from base.Callbacks import Callback, ListCallback, StdOutCallback
 from base.Callbacks.TensorboardCallback import TensorboardCallback
 from base.hints import Criterion, Metric
 
-# TODO: Callbacks: StdOut,Tensorboard,EarlyStoping,Checkpoint creator
 # TODO: Implement generic output stream (stdout, file, web)
 
 ModelInformation = typing.NamedTuple('ModelInformation', [
@@ -89,17 +88,17 @@ class Trainer:
             self.metric = metric
             self.device = device
 
-            # TODO: Check me
-            # move metric if is a module
-            # Initialize metrics
-            if isinstance(metric, torch.nn.Module):
-                self.metric = metric.to(device)
-            elif (isinstance(metric, List)):
-                self.metric = [metric_fn.to(device) if isinstance(metric_fn, torch.nn.Module) else metric_fn for
-                               metric_fn in metric]
-            elif (isinstance(metric, Dict)):
-                self.metric = {key: (metric_fn.to(device) if isinstance(metric_fn, torch.nn.Module) else metric_fn) for
-                               key, metric_fn in metric.items()}
+        # TODO: Check me
+        # move metric if is a module
+        # Initialize metrics
+        if isinstance(metric, torch.nn.Module):
+            self.metric = metric.to(device)
+        elif (isinstance(metric, List)):
+            self.metric = [metric_fn.to(device) if isinstance(metric_fn, torch.nn.Module) else metric_fn for
+                           metric_fn in metric]
+        elif (isinstance(metric, Dict)):
+            self.metric = {key: (metric_fn.to(device) if isinstance(metric_fn, torch.nn.Module) else metric_fn) for
+                           key, metric_fn in metric.items()}
 
 
         # set TrainingState type (it's dynamic: it changes with metric)
@@ -315,10 +314,10 @@ class Trainer:
 
                 if isinstance(X, torch.Tensor):
                     X = X.detach().to(self.device)
-                elif isinstance(X, List):
+                elif isinstance(X, (Tuple,List)):
                     X = [x.detach().to(self.device) if isinstance(x,torch.Tensor) else x for x in X]
                 else:
-                    raise RuntimeError("Invalid type for X")
+                    raise RuntimeError(f"Invalid type for X. received: {type(X)}, expected: Tensor, Tuple[Tensor], List[Tensor].")
 
                 self.callback.end_batch(
                     **self._create_args_for_callback(batch_index=index_batch,
@@ -421,7 +420,9 @@ class Trainer:
                                                                          epochs=epochs,
                                                                          train_state=train_state,
                                                                          val_state=val_state,
-                                                                         current_history=history)
+                                                                         current_history=history,
+                                                                         # TODO: Handle multiple param_groups
+                                                                         lr=self.optimizer.param_groups[0]['lr'])
                                         )
 
         return history
