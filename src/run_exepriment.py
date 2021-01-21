@@ -69,42 +69,20 @@ def fix_randomness(seed: int):
 
 
 def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_size: int, save_checkpoints: int,
-        **model_kwargs):
-    """Run the experiment with specified epochs
-
-    Args:
-        experiment:
-        n_workers:
-        pin_memory:
-        epochs:
-        batch_size:
-
-    Keyword Args:
-        in_channels
-        low_level_features
-        n_dab
-        out_channels_dab
-        intra_layer_output_features
-        n_intra_layers
-        reduction
-
-    Returns:
-        error : bool
-    """
-    # set experiment string
-    models.ASDN.set_save_checkpoints(save_checkpoints)
+        save: bool,
+        **kwargs):
+    # Set the experiment
     experiment += f"_E{epochs}_B{batch_size}_S{models.ASDN._SEGMENTS_GRADIENT_CHECKPOINT}"
-    if len(model_kwargs) > 0:
-        experiment += "_".join(map(lambda elem: f"{elem[0]}{elem[1]}", model_kwargs.items()))
-
-    print(f"Experimenting with: {experiment}")
+    if len(kwargs) > 0:
+        experiment += "_".join(map(lambda elem: f"{elem[0]}{elem[1]}", kwargs.items()))
+    print(f"Experimenting with {experiment}")
 
     # Get the device
     if not torch.cuda.is_available():
         raise RuntimeError("No GPU available. Cannot train the network.")
-
     DEVICE = torch.device('cuda:0')
 
+    # Set non-model parameters
     # Greater than 8 led to OutOfMemory using default configuration
     BATCH_SIZE = batch_size
     # BUG: https://github.com/pytorch/pytorch/issues/15849#issuecomment-573921048
@@ -133,18 +111,21 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
     VAL_DATALOADER = FastDataLoader(dataset=VAL_DATASET, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS,
                                     collate_fn=ASDN_COLLATE_FN, pin_memory=PIN_MEMORY)
 
+    # Prepare the model
     # Prepare model with specified parameters
-    ASDN_ = models.ASDN.ASDN(input_image_channels=3, lfr=LFR, **model_kwargs).to(DEVICE)
+    models.ASDN.set_save_checkpoints(save_checkpoints)
+    ASDN_ = models.ASDN.ASDN(input_image_channels=3, lfr=LFR, **kwargs).to(DEVICE)
 
     # lr=3e-4 as suggested in https://karpathy.github.io/2019/04/25/recipe/
-    ADAM = Adam(ASDN_.parameters(), lr=3e-4, betas=(0.9, 0.999))
+    LR = kwargs.get("lr", 3e-4)
+    ADAM = Adam(ASDN_.parameters(), lr=LR, betas=(0.9, 0.999), eps=1e-8)
 
     # Define the criterion: L1 mean over the batch
     L1 = L1Loss(reduction='mean').to(DEVICE)
 
     # Define the metrics
-    # SSIM cause out of memory both on GPU and on CPU
-    METRICS = [PSNR(max_pixel_value=1.0, reduction='mean'), SSIM(max_pixel_value=1.0, reduction='mean')]
+    METRICS = [PSNR(max_pixel_value=1.0, reduction='mean'),
+               SSIM(max_pixel_value=1.0, reduction='mean')]
 
     # Define the trainer
     TRAINER = Trainer(experiment=experiment, model=ASDN_, optimizer=ADAM, criterion=L1, metric=METRICS,
@@ -162,6 +143,7 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
     error: bool = False
     try:
         TRAINER.fit(train_loader=TRAIN_DATALOADER, val_loader=VAL_DATALOADER, epochs=epochs)
+
     except (RuntimeError, ValueError) as e:
         print(str(e))
         error = True
@@ -189,16 +171,17 @@ def batch_time_comparison():
     fix_randomness(2020)
 
     model_kwargs = {
-        "n_dab":5,
-        "n_intra_layers":5,
-        "out_channels_dab":32,
-        "intra_layer_output_features":40
+        "n_dab": 5,
+        "n_intra_layers": 5,
+        "out_channels_dab": 32,
+        "intra_layer_output_features": 40
     }
 
     # no save checkpoint
     run("BATCH_TIME", n_workers=2, pin_memory=True, batch_size=8, save_checkpoints=1, epochs=1, **model_kwargs)
     # save checkpoint
     run("BATCH_TIME", n_workers=2, pin_memory=True, batch_size=8, save_checkpoints=2, epochs=1, **model_kwargs)
+
 
 def overfitting():
     model_kwargs = {
@@ -207,8 +190,16 @@ def overfitting():
         "out_channels_dab": 32,
         "intra_layer_output_features": 32
     }
+    others_params = {
+        "lr": 3e-3
+    }
+
+    kwargs = {**model_kwargs, **others_params}
+
     fix_randomness(2020)
-    run("OVERFITTING", n_workers=4, pin_memory=True, save_checkpoints=1, epochs=100, batch_size=8, **model_kwargs)
+    run("OVERFITTING", n_workers=4, pin_memory=True, save_checkpoints=1, epochs=200, batch_size=8, save=True,
+        **kwargs)
+
 
 if __name__ == "__main__":
     overfitting()
