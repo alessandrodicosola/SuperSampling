@@ -106,9 +106,6 @@ class SSIM(torch.nn.Module):
             https://github.com/photosynthesis-team/piq/blob/5f907063f5abe357173a5bed1126b07d46f1b6ac/piq/ssim.py#L350
 
         """
-        prediction = prediction
-        target = target
-
         if prediction.size() != target.size():
             raise RuntimeError("Size mismatching between prediction and target.")
 
@@ -185,7 +182,6 @@ class SSIM(torch.nn.Module):
         return (luminance * contrast).mean(dim=[-1, -2])
 
     def _luminance(self, mu_xy, mu_x_sq, mu_y_sq):
-        """ Inside the paper they wrote mu_x + mu_y in the matlab implementation there is mu_xy"""
         return (2 * mu_xy + self.C1) / (mu_x_sq + mu_y_sq + self.C1)
 
     def _contrast(self, sigma_xy, sigma_x_sq, sigma_y_sq):

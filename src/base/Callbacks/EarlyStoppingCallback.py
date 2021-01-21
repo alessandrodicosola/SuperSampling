@@ -7,7 +7,7 @@ class EarlyStoppingCallback(Callback):
 
     def start_epoch(self, *args, **kwargs):
         if self.capture:
-            self.best_loss = kwargs.get('last_loss')
+            self.best_loss = kwargs.get('last_val_loss')
             self.best_epoch = kwargs.get('epoch')
             self._logger.debug("Received from Trainer best_loss: %s and best_epoch: %s", self.best_loss,
                                self.best_epoch)

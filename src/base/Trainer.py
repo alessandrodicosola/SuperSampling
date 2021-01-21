@@ -32,6 +32,7 @@ from base.Callbacks.TensorboardCallback import TensorboardCallback
 from base.hints import Criterion, Metric
 
 # TODO: Implement generic output stream (stdout, file, web)
+# TODO: Create an abstract general class for Metric
 
 ModelInformation = typing.NamedTuple('ModelInformation', [
     ("name", str),
@@ -99,7 +100,6 @@ class Trainer:
         elif (isinstance(metric, Dict)):
             self.metric = {key: (metric_fn.to(device) if isinstance(metric_fn, torch.nn.Module) else metric_fn) for
                            key, metric_fn in metric.items()}
-
 
         # set TrainingState type (it's dynamic: it changes with metric)
         # TrainingState(loss,metric1,...,metric_n)
@@ -314,10 +314,11 @@ class Trainer:
 
                 if isinstance(X, torch.Tensor):
                     X = X.detach().to(self.device)
-                elif isinstance(X, (Tuple,List)):
-                    X = [x.detach().to(self.device) if isinstance(x,torch.Tensor) else x for x in X]
+                elif isinstance(X, (Tuple, List)):
+                    X = [x.detach().to(self.device) if isinstance(x, torch.Tensor) else x for x in X]
                 else:
-                    raise RuntimeError(f"Invalid type for X. received: {type(X)}, expected: Tensor, Tuple[Tensor], List[Tensor].")
+                    raise RuntimeError(
+                        f"Invalid type for X. received: {type(X)}, expected: Tensor, Tuple[Tensor], List[Tensor].")
 
                 self.callback.end_batch(
                     **self._create_args_for_callback(batch_index=index_batch,
@@ -388,7 +389,7 @@ class Trainer:
 
         resuming = self._init_param_for_resuming('resuming', default=False)
         start_epoch = self._init_param_for_resuming('last_epoch', default=0)
-        last_loss = self._init_param_for_resuming('last_loss', default=math.inf)
+        last_loss = self._init_param_for_resuming('last_val_loss', default=math.inf)
         history = self._init_param_for_resuming('last_history', self.HistoryState(list(), list()))
         self.logger.debug(f"Is resuming? {resuming}")
         ###
@@ -412,7 +413,6 @@ class Trainer:
 
             if self.lr_scheduler:
                 self.lr_scheduler.step()
-
 
             if self.callback:
                 self.callback.end_epoch(**self._create_args_for_callback(resuming=resuming,
@@ -855,7 +855,7 @@ class Trainer:
         # for resuming training
         obj.resuming = True
         obj.last_epoch = what_to_load['epoch']
-        obj.last_loss = what_to_load['loss']
+        obj.last_val_loss = what_to_load['loss']
         obj.last_history = what_to_load['current_history']
 
         return obj

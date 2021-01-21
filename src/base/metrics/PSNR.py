@@ -16,9 +16,6 @@ class PSNR(torch.nn.Module):
     """
 
     def __init__(self, max_pixel_value: float = 255., reduction=None):
-        """
-
-        """
         super(PSNR, self).__init__()
         self.max_pixel_value = max_pixel_value
         self.eps = 1e-8
@@ -33,10 +30,6 @@ class PSNR(torch.nn.Module):
             raise RuntimeError(
                 f"Sizes are mismatching: (predictions) {prediction.size()} != (target) {target.size()}")
 
-        prediction = prediction
-        target = target
-
-        # scale: now max value is 1
         prediction = prediction / self.max_pixel_value
         target = target / self.max_pixel_value
 
@@ -51,7 +44,8 @@ class PSNR(torch.nn.Module):
         mse = torch.mean((prediction - target) ** 2, dim=[channel_dim, height_dim, width_dim])
         mse = mse + self.eps
         # if mse is close to 0 returns 100 otherwise returns psnr
-        psnr = torch.where(torch.isclose(mse, torch.zeros_like(mse)), 100 * torch.ones_like(mse),
+        psnr = torch.where(torch.isclose(mse, torch.zeros_like(mse)),
+                           100 * torch.ones_like(mse),
                            - 10 * torch.log10(mse))
 
         if self.reduction == "mean":
