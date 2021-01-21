@@ -164,6 +164,12 @@ class ASDNDataset(torch.utils.data.Dataset):
       augmentation: Transformations for augmenting the dataset
     """
 
+    @staticmethod
+    def denormalize_fn():
+        return NormalizeInverse(mean=[0.4484562277793884, 0.4374960660934448, 0.40452802181243896],
+                                std=[0.2436375468969345, 0.23301854729652405, 0.24241816997528076])
+
+
     def __init__(self,
                  folder: Union[str, Path],
                  patch_size: int,
