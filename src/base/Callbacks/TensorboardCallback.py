@@ -30,14 +30,20 @@ class TensorboardCallback(Callback):
         assert len(train) == len(val)
 
         import matplotlib.pyplot as plt
+        import pandas as pd
+
+        smooth = 0.6
 
         x = range(1, len(train) + 1)
         fig, axis = plt.subplots()
         axis.set_xlabel("Epochs")
         axis.set_ylabel("Loss")
 
-        axis.plot(x, train, color="tab:blue", label='train')
-        axis.plot(x, val, color="tab:orange", label='val')
+        df_train = pd.DataFrame(train)
+        df_val = pd.DataFrame(val)
+
+        axis.plot(x, df_train.ewm(alpha=smooth).mean().values, color="tab:blue", label='train')
+        axis.plot(x, df_val.ewm(alpha=smooth).mean().values, color="tab:orange", label='val')
 
         axis.legend()
         return fig
@@ -56,7 +62,8 @@ class TensorboardCallback(Callback):
         self.train_losses.append(train_state.loss)
         self.val_losses.append(val_state.loss)
 
-        self.writer.add_figure("Epoch/TrainVal", TensorboardCallback.get_plot_train_val(self.train_losses, self.val_losses), epoch)
+        self.writer.add_figure("Epoch/TrainVal",
+                               TensorboardCallback.get_plot_train_val(self.train_losses, self.val_losses), epoch)
 
         self.writer.add_scalar("Hyperparamters/lr", kwargs.get('lr'), epoch)
         self.writer.close()
@@ -84,10 +91,10 @@ class TensorboardCallback(Callback):
                 self.writer.add_scalar(f"Batches/Val/{key}", value, global_step)
 
         if self.print_images:
-            nrow = math.floor(math.sqrt(kwargs.get('batch_size')))
+            nrow = math.ceil(math.sqrt(kwargs.get('batch_size')))
 
             # TODO Check this
-            if kwargs.get('current_epoch') % self.print_images_frequency == 0 and 'val_state' in kwargs:
+            if 'val_state' in kwargs and kwargs.get('current_epoch') == 0 or ((kwargs.get('current_epoch') + 1) % self.print_images_frequency) == 0:
                 X = kwargs.get("in_")
                 if isinstance(X, (List, Tuple)):
                     for index, input in enumerate(filter(lambda elem: isinstance(elem, Tensor), X)):

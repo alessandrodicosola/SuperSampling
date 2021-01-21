@@ -7,7 +7,7 @@ class CheckpointCallback(Callback):
 
     def end_epoch(self, *args, **kwargs):
         epoch = kwargs.get("epoch")
-        if epoch % self.frequency:
+        if epoch == 0 or epoch + 1 % self.frequency == 0:
             save_model_fn = kwargs.get("save_model_fn")
             save_model_fn(f"{epoch}.checkpoint")
 
