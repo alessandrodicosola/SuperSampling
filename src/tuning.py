@@ -18,8 +18,7 @@ def tune(**model_kwargs):
             return
 
 
-if __name__ == "__main__":
-
+def tune_saturate_memory():
     n_experiment = 50
 
     for _ in range(n_experiment):
@@ -36,3 +35,20 @@ if __name__ == "__main__":
 
         tune(n_dab=n_dab, n_intra_layers=n_intra_layers, out_channels_dab=out_channels_dab,
              intra_layer_output_features=intra_layer_output_features)
+
+
+def tune_lr(**model_kwargs):
+    for lr in [1e-2, 1e-3, 1e-4]:
+        kwargs = {"lr": lr, **model_kwargs}
+        run("LR", epochs=10, n_workers=2, pin_memory=True, batch_size=8, save_checkpoints=1, save=False, **kwargs)
+
+
+if __name__ == "__main__":
+    fix_randomness(2020)
+    model_kwargs = {
+        "n_dab": 8,
+        "n_intra_layers": 4,
+        "out_channels_dab": 32,
+        "intra_layer_output_features": 32
+    }
+    tune_lr(**model_kwargs)
