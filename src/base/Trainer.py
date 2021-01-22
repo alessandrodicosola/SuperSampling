@@ -247,7 +247,7 @@ class Trainer:
                 train_loss = epoch_loss / total_samples
                 if self.metric:
                     train_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric,
-                                                          total_samples) if self.metric else None
+                                                              total_samples) if self.metric else None
 
                 self.callback.end_batch(
                     self._create_args_for_callback(batch_index=index_batch,
@@ -325,14 +325,6 @@ class Trainer:
                 if self.metric:
                     val_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
 
-                if isinstance(X, torch.Tensor):
-                    X = X.detach().to(self.device)
-                elif isinstance(X, (Tuple, List)):
-                    X = [x.detach().to(self.device) if isinstance(x, torch.Tensor) else x for x in X]
-                else:
-                    raise RuntimeError(
-                        f"Invalid type for X. received: {type(X)}, expected: Tensor, Tuple[Tensor], List[Tensor].")
-
                 self.callback.end_batch(
                     self._create_args_for_callback(batch_index=index_batch,
                                                    batch_size=BATCH_SIZE,
@@ -340,7 +332,7 @@ class Trainer:
                                                    epoch=EPOCH,
                                                    val_state=self._return_training_state(val_loss,
                                                                                          val_metric),
-                                                   X=X, out=out.detach()))
+                                                   X=self._detach(X), out=out.detach(), ground_truth=self._detach(y)))
 
         epoch_loss = epoch_loss / total_samples
 
@@ -348,6 +340,15 @@ class Trainer:
             epoch_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
 
         return self._return_training_state(epoch_loss=epoch_loss, epoch_metric=epoch_metric)
+
+    def _detach(self, X):
+        if isinstance(X, torch.Tensor):
+            return X.detach().to(self.device)
+        elif isinstance(X, (Tuple, List)):
+            return [x.detach().to(self.device) if isinstance(x, torch.Tensor) else x for x in X]
+        else:
+            raise RuntimeError(
+                f"Invalid type for X. received: {type(X)}, expected: Tensor, Tuple[Tensor], List[Tensor].")
 
     def fit(self, train_loader: torch.utils.data.DataLoader, val_loader: torch.utils.data.DataLoader,
             epochs: int) -> 'HistoryState':

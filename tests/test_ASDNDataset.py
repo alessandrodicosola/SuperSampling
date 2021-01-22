@@ -9,7 +9,8 @@ from datasets.ASDNDataset import ASDNDataset, collate_fn, NormalizeInverse
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 from tests.pytorch_test import PyTorchTest
 
-@skip("Done and it's working. Skipped because it's expensive.")
+
+# @skip("Done and it's working. Skipped because it's expensive.")
 class TestASDNDataset(PyTorchTest):
     def before(self):
         BATCH_SIZE = 8
@@ -23,9 +24,10 @@ class TestASDNDataset(PyTorchTest):
         NUM_WORKERS = 4
         self.DATALOADER = DataLoader(self.DATASET, num_workers=NUM_WORKERS, batch_size=BATCH_SIZE, pin_memory=True,
                                      collate_fn=self.COLLATE_FN)
-        self.denormalize = NormalizeInverse(self.DATASET.mean, self.DATASET.std)
+        self.denormalize = ASDNDataset.denormalize_fn()
 
         self.path = Path("test_images")
+
     def after(self):
         # import shutil
         # shutil.rmtree(self.path)
@@ -54,27 +56,26 @@ class TestASDNDataset(PyTorchTest):
             low_res_batch_i = self.denormalize(low_res_batch_i)
             pyramid_i = self.denormalize(pyramid_i)
 
-
             N_ROW = 4
 
             plt.figure(figsize=(10, 30))
 
             plt.subplot(311)
-            plt.imshow(make_grid(low_res_batch_i_minus_1, nrow=N_ROW,normalize=True).permute(1, 2, 0))
+            plt.imshow(make_grid(low_res_batch_i_minus_1, nrow=N_ROW, normalize=True).permute(1, 2, 0))
             plt.title("low_res_batch_i_minus_1")
 
             plt.subplot(312)
-            plt.imshow(make_grid(low_res_batch_i, nrow=N_ROW,normalize=True).permute(1, 2, 0))
+            plt.imshow(make_grid(low_res_batch_i, nrow=N_ROW, normalize=True).permute(1, 2, 0))
             plt.title("low_res_batch_i")
 
             plt.subplot(313)
-            plt.imshow(make_grid(pyramid_i, nrow=N_ROW,normalize=True).permute(1, 2, 0))
+            plt.imshow(make_grid(pyramid_i, nrow=N_ROW, normalize=True).permute(1, 2, 0))
             plt.title("Ground truth i")
-
 
             if not self.path.exists():
                 self.path.mkdir(parents=True)
             plt.savefig(self.path / f"img{index}_scale{scale}.pdf", format='pdf')
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -32,7 +32,7 @@ class TestASDNASDNDataset(PyTorchTest):
 
         COLLATE_FN = partial(collate_fn, lfr=self.lfr)
         dataset = ASDNDataset(R"DIV2K_valid_HR", self.PATCH_SIZE, self.lfr)
-        self.denormalize = NormalizeInverse(dataset.mean, dataset.std)
+        self.denormalize = ASDNDataset.denormalize_fn()
         self.dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, num_workers=6, pin_memory=True,
                                      collate_fn=COLLATE_FN)
         self.asdn = ASDN(3, self.lfr).to(self.gpu)

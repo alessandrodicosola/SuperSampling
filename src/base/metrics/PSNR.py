@@ -15,8 +15,9 @@ class PSNR(torch.nn.Module):
         reduction: Reduction applied over the batch: none (not supported by Trainer) | mean | sum
     """
 
-    def __init__(self, max_pixel_value: float = 255., reduction=None):
+    def __init__(self, max_pixel_value: float = 255., reduction=None, denormalize_fn=None):
         super(PSNR, self).__init__()
+        self.denormalize_fn = denormalize_fn
         self.max_pixel_value = max_pixel_value
         self.eps = 1e-8
         self.reduction = reduction
@@ -30,8 +31,10 @@ class PSNR(torch.nn.Module):
             raise RuntimeError(
                 f"Sizes are mismatching: (predictions) {prediction.size()} != (target) {target.size()}")
 
-        prediction = prediction / self.max_pixel_value
-        target = target / self.max_pixel_value
+        prediction = prediction / self.max_pixel_value if not self.denormalize_fn else self.denormalize_fn(
+            prediction) / self.max_pixel_value
+        target = target / self.max_pixel_value if not self.denormalize_fn else self.denormalize_fn(
+            target) / self.max_pixel_value
 
         rank = len(prediction.size())
 

@@ -28,32 +28,23 @@ class TensorboardCallback(Callback):
         self.writer = SummaryWriter(self.log_dir)
 
     @staticmethod
-    def get_plot_train_val(train, val):
+    def get_plot_train_val(train, val, alpha=0.3):
         assert len(train) == len(val)
 
-        import matplotlib.pyplot as plt
         import pandas as pd
+        import seaborn as sbn
+        sbn.set(palette="Pastel1", style="white")
 
-        smooth = 0.6
+        df_train = pd.DataFrame(train, columns=["train"])
+        df_val = pd.DataFrame(val, columns=["val"])
+        df = pd.concat([df_train,df_val], axis=1)
 
-        x = range(1, len(train) + 1)
-        fig, axis = plt.subplots()
-        axis.set_xlabel("Epochs")
-        axis.set_ylabel("Loss")
-
-        df_train = pd.DataFrame(train)
-        df_val = pd.DataFrame(val)
-
-        axis.plot(x, df_train.ewm(alpha=smooth).mean().values, color="tab:blue", label='train')
-        axis.plot(x, df_val.ewm(alpha=smooth).mean().values, color="tab:orange", label='val')
-
-        axis.legend()
-        return fig
+        return df.ewm(alpha=alpha).mean().plot.line()
 
     @staticmethod
     def history_to_train_val_loss(history: 'HistoryState'):
-        train = map(lambda state: state.loss, history.train)
-        val = map(lambda state: state.loss, history.val)
+        train = list(map(lambda state: state.loss, history.train))
+        val = list(map(lambda state: state.loss, history.val))
         return train, val
 
     def end_epoch(self, wrapper: CallbackWrapper):
@@ -115,21 +106,21 @@ class TensorboardCallback(Callback):
                         # grid_in = torchvision.utils.make_grid(input.detach(), nrow=4)
                         # self.writer.add_image(f'Epoch/Images/Input{index}_original', grid_in,
                         #                       kwargs.get('current_epoch'))
-                        grid_in = torchvision.utils.make_grid(self.get_tensor(input), nrow=nrow).clamp(0, 1)
+                        grid_in = torchvision.utils.make_grid(self.get_tensor(input), nrow=nrow)
                         self.writer.add_image(f'Epoch/Images/Input{index}', grid_in, current_epoch)
                 elif isinstance(X, Tensor):
                     # grid_in = torchvision.utils.make_grid(X.detach(), nrow=4)
                     # self.writer.add_image(f'Epoch/Images/Input_original', grid_in, kwargs.get('current_epoch'))
-                    grid_in = torchvision.utils.make_grid(self.get_tensor(X), nrow=nrow).clamp(0, 1)
+                    grid_in = torchvision.utils.make_grid(self.get_tensor(X), nrow=nrow)
                     self.writer.add_image('Epoch/Images/Input', grid_in, current_epoch)
                 else:
                     raise RuntimeError(
                         f"Unknown type. received: {type(X)}, expected: Tensor, List[Tensor], Tuple[Tensor].")
 
-                grid_out = torchvision.utils.make_grid(self.get_tensor(wrapper.out), nrow=nrow).clamp(0, 1)
-                print(grid_out.min(), grid_out.max())
-
+                grid_out = torchvision.utils.make_grid(self.get_tensor(wrapper.out), nrow=nrow)
+                grid_ground_truth = torchvision.utils.make_grid(self.get_tensor(wrapper.ground_truth), nrow=nrow)
                 self.writer.add_image('Epoch/Images/Output', grid_out, current_epoch)
+                self.writer.add_image('Epoch/Images/Ground Truth', grid_ground_truth, current_epoch)
 
     def __init__(self, log_dir: str, print_images=False, print_images_frequency: int = 10, denormalize_fn=None):
         super(TensorboardCallback, self).__init__()

@@ -124,8 +124,8 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
     L1 = L1Loss(reduction='mean').to(DEVICE)
 
     # Define the metrics
-    METRICS = [PSNR(max_pixel_value=1.0, reduction='mean'),
-               SSIM(max_pixel_value=1.0, reduction='mean')]
+    METRICS = [PSNR(max_pixel_value=1.0, reduction='mean', denormalize_fn=ASDNDataset.denormalize_fn()),
+               SSIM(max_pixel_value=1.0, reduction='mean', denormalize_fn=ASDNDataset.denormalize_fn())]
 
     # Define the trainer
     TRAINER = Trainer(experiment=experiment, model=ASDN_, optimizer=ADAM, criterion=L1, metric=METRICS,
@@ -135,8 +135,7 @@ def run(experiment: str, n_workers: int, pin_memory: bool, epochs: int, batch_si
 
     tensorboard_callback = TensorboardCallback(log_dir=str(TRAINER.log_dir), print_images=True,
                                                print_images_frequency=10,
-                                               denormalize_fn=NormalizeInverse(mean=TRAIN_DATASET.mean,
-                                                                               std=TRAIN_DATASET.std))
+                                               denormalize_fn=ASDNDataset.denormalize_fn())
 
     TRAINER.callback.add_callback(tensorboard_callback)
 

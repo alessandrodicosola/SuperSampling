@@ -70,10 +70,14 @@ class SSIM(torch.nn.Module):
                  image_channels=3,
                  K1_K2: Tuple[float, float] = (0.01, 0.03),
                  alpha_beta_gamma: Tuple[float, float, float] = (1, 1, 1),
-                 reduction=None):
+                 reduction=None,
+                 denormalize_fn=None):
         super(SSIM, self).__init__()
         if not reduction:
             raise RuntimeError("Trainer supports only metrics that returns float: .items() at the end.")
+
+        self.denormalize_fn = denormalize_fn
+
         self.reduction = reduction
 
         K1, K2 = K1_K2
@@ -106,6 +110,11 @@ class SSIM(torch.nn.Module):
             https://github.com/photosynthesis-team/piq/blob/5f907063f5abe357173a5bed1126b07d46f1b6ac/piq/ssim.py#L350
 
         """
+        prediction = prediction if not self.denormalize_fn else self.denormalize_fn(
+            prediction)
+        target = target if not self.denormalize_fn else self.denormalize_fn(
+            prediction)
+
         if prediction.size() != target.size():
             raise RuntimeError("Size mismatching between prediction and target.")
 
