@@ -9,7 +9,7 @@ from datasets.ASDNDataset import ASDNDataset, collate_fn, NormalizeInverse
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 from tests.pytorch_test import PyTorchTest
 
-# @skip("Done and it's working. Skipped because it's expensive.")
+@skip("Done and it's working. Skipped because it's expensive.")
 class TestASDNDataset(PyTorchTest):
     def before(self):
         BATCH_SIZE = 8

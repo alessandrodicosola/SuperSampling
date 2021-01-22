@@ -1,22 +1,22 @@
 from base.Callbacks import Callback
 import math
 import base.logging_
+from base.Callbacks.Callback import CallbackWrapper
 
 
 class EarlyStoppingCallback(Callback):
 
-    def start_epoch(self, *args, **kwargs):
+    def start_epoch(self, wrapper: CallbackWrapper):
         if self.capture:
-            self.best_loss = kwargs.get('last_val_loss')
-            self.best_epoch = kwargs.get('epoch')
+            self.best_loss = wrapper.last_val_loss
+            self.best_epoch = wrapper.epoch
             self._logger.debug("Received from Trainer best_loss: %s and best_epoch: %s", self.best_loss,
                                self.best_epoch)
             self.capture = False
 
-    def end_epoch(self, *args, **kwargs):
-        epoch = kwargs.get('epoch')
-        val_state = kwargs.get('val_state')
-        val_loss = val_state.loss
+    def end_epoch(self, wrapper: CallbackWrapper):
+        epoch = wrapper.epoch
+        val_loss = wrapper.val_state.loss
 
         if val_loss <= self.best_loss + self.eps:
 
@@ -28,22 +28,19 @@ class EarlyStoppingCallback(Callback):
             self.best_loss = val_loss
             self.best_epoch = epoch
 
-            save_model_fn = kwargs.get('save_model_fn')
             # call Trainer.save_model(loss,epoch)
-            save_model_fn(f"{epoch}_{val_loss:.2f}")
+            wrapper.trainer.save_model(f"{epoch}_{val_loss:.2f}")
         else:
             self.counter_patience -= 1
             self._logger.debug("val_loss not improving.")
             if self.counter_patience == 0:
-                stop_fn = kwargs.get('stop_fn')
                 print(f"Early stopping at epoch {epoch}. Best epoch: {self.best_epoch}")
-                # call Trainer.stop(self)
-                stop_fn(self)
+                wrapper.trainer._stop_fn(self)
 
-    def start_batch(self, *args, **kwargs):
+    def start_batch(self, wrapper: CallbackWrapper):
         pass
 
-    def end_batch(self, *args, **kwargs):
+    def end_batch(self, wrapper: CallbackWrapper):
         pass
 
     def __init__(self, patience: int, eps: float = 1e-7):

@@ -11,6 +11,8 @@ from base.Callbacks import Callback
 
 import math
 
+from base.Callbacks.Callback import CallbackWrapper
+
 
 class TensorboardCallback(Callback):
     """Callback for writing tensorboard summary
@@ -22,7 +24,7 @@ class TensorboardCallback(Callback):
         denormalie_fn : function for denormalizing images if they are normalized
     """
 
-    def start_epoch(self, *args, **kwargs):
+    def start_epoch(self, wrapper: CallbackWrapper):
         self.writer = SummaryWriter(self.log_dir)
 
     @staticmethod
@@ -48,35 +50,45 @@ class TensorboardCallback(Callback):
         axis.legend()
         return fig
 
-    def end_epoch(self, *args, **kwargs):
-        epoch = kwargs.get('epoch')
+    @staticmethod
+    def history_to_train_val_loss(history: 'HistoryState'):
+        train = map(lambda state: state.loss, history.train)
+        val = map(lambda state: state.loss, history.val)
+        return train, val
 
-        train_state: 'TrainingState' = kwargs.get('train_state')
+    def end_epoch(self, wrapper: CallbackWrapper):
+        epoch = wrapper.epoch
+
+        train_state = wrapper.train_state
         for key, value in train_state._asdict().items():
             self.writer.add_scalar(f"Epoch/Train/{key}", value, epoch)
 
-        val_state: 'TrainingState' = kwargs.get('val_state')
+        val_state = wrapper.val_state
         for key, value in val_state._asdict().items():
             self.writer.add_scalar(f"Epoch/Val/{key}", value, epoch)
 
-        self.train_losses.append(train_state.loss)
-        self.val_losses.append(val_state.loss)
+        train, val = TensorboardCallback.history_to_train_val_loss(wrapper.history)
 
         self.writer.add_figure("Epoch/TrainVal",
-                               TensorboardCallback.get_plot_train_val(self.train_losses, self.val_losses), epoch)
+                               TensorboardCallback.get_plot_train_val(train, val), epoch)
 
-        self.writer.add_scalar("Hyperparamters/lr", kwargs.get('lr'), epoch)
+        self.writer.add_scalar("Hyperparamters/lr", wrapper.trainer.optimizer.param_groups[0]['lr'], epoch)
         self.writer.close()
 
-    def start_batch(self, *args, **kwargs):
+    def start_batch(self, wrapper: CallbackWrapper):
         pass
 
-    def end_batch(self, *args, **kwargs):
+    def end_batch(self, wrapper: CallbackWrapper):
+        current_epoch = wrapper.epoch
+        batch_index = wrapper.batch_index
+        batch_nums = wrapper.batch_nums
+        batch_size = wrapper.batch_size
 
-        global_step = kwargs.get('batch_index') + (kwargs.get('current_epoch') * kwargs.get('batch_nums'))
+        global_step = batch_index + current_epoch * batch_nums
 
-        train_state = kwargs.get('train_state', None)
-        val_state = kwargs.get('val_state', None)
+        train_state = wrapper.train_state
+        val_state = wrapper.val_state
+
         if train_state is None and val_state is None:
             raise RuntimeError("Both train_state and val_state are None type!")
 
@@ -91,31 +103,33 @@ class TensorboardCallback(Callback):
                 self.writer.add_scalar(f"Batches/Val/{key}", value, global_step)
 
         if self.print_images:
-            nrow = math.ceil(math.sqrt(kwargs.get('batch_size')))
+            nrow = math.ceil(math.sqrt(batch_size))
 
-            # TODO Check this
-            if 'val_state' in kwargs and kwargs.get('current_epoch') == 0 or ((kwargs.get('current_epoch') + 1) % self.print_images_frequency) == 0:
-                X = kwargs.get("in_")
+            if val_state and (
+                    current_epoch == 0 or (((current_epoch + 1) % self.print_images_frequency) == 0)):
+
+                X = wrapper.X
+
                 if isinstance(X, (List, Tuple)):
                     for index, input in enumerate(filter(lambda elem: isinstance(elem, Tensor), X)):
                         # grid_in = torchvision.utils.make_grid(input.detach(), nrow=4)
                         # self.writer.add_image(f'Epoch/Images/Input{index}_original', grid_in,
                         #                       kwargs.get('current_epoch'))
                         grid_in = torchvision.utils.make_grid(self.get_tensor(input), nrow=nrow).clamp(0, 1)
-                        self.writer.add_image(f'Epoch/Images/Input{index}', grid_in, kwargs.get('current_epoch'))
-                    del X
+                        self.writer.add_image(f'Epoch/Images/Input{index}', grid_in, current_epoch)
                 elif isinstance(X, Tensor):
                     # grid_in = torchvision.utils.make_grid(X.detach(), nrow=4)
                     # self.writer.add_image(f'Epoch/Images/Input_original', grid_in, kwargs.get('current_epoch'))
                     grid_in = torchvision.utils.make_grid(self.get_tensor(X), nrow=nrow).clamp(0, 1)
-                    self.writer.add_image('Epoch/Images/Input', grid_in, kwargs.get('current_epoch'))
-                    del X
+                    self.writer.add_image('Epoch/Images/Input', grid_in, current_epoch)
                 else:
-                    raise RuntimeError("Unknown type.")
+                    raise RuntimeError(
+                        f"Unknown type. received: {type(X)}, expected: Tensor, List[Tensor], Tuple[Tensor].")
 
-                grid_out = torchvision.utils.make_grid(self.get_tensor(kwargs.get('out')), nrow=nrow).clamp(0, 1)
+                grid_out = torchvision.utils.make_grid(self.get_tensor(wrapper.out), nrow=nrow).clamp(0, 1)
+                print(grid_out.min(), grid_out.max())
 
-                self.writer.add_image('Epoch/Images/Output', grid_out, kwargs.get('current_epoch'))
+                self.writer.add_image('Epoch/Images/Output', grid_out, current_epoch)
 
     def __init__(self, log_dir: str, print_images=False, print_images_frequency: int = 10, denormalize_fn=None):
         super(TensorboardCallback, self).__init__()
@@ -125,10 +139,6 @@ class TensorboardCallback(Callback):
         self.denormalize_fn = denormalize_fn
         self.print_images = print_images
         self.print_images_frequency = print_images_frequency
-
-        # TODO: Find a better way
-        self.train_losses = []
-        self.val_losses = []
 
     def get_tensor(self, tensor: Tensor):
         return self.denormalize_fn(tensor) if self.denormalize_fn else tensor

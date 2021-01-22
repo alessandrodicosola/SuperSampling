@@ -1,20 +1,23 @@
+from collections import namedtuple
+
 from base.Callbacks import Callback
+from base.Callbacks.Callback import CallbackWrapper
 
 
 class CheckpointCallback(Callback):
-    def start_epoch(self, *args, **kwargs):
+    def start_epoch(self, wrapper: CallbackWrapper):
         pass
 
-    def end_epoch(self, *args, **kwargs):
-        epoch = kwargs.get("epoch")
+    def end_epoch(self, wrapper: CallbackWrapper):
+        epoch = wrapper.current_epoch
+
         if epoch == 0 or epoch + 1 % self.frequency == 0:
-            save_model_fn = kwargs.get("save_model_fn")
-            save_model_fn(f"{epoch}.checkpoint")
+            wrapper.trainer.save_model_fn(f"{epoch}.checkpoint")
 
-    def start_batch(self, *args, **kwargs):
+    def start_batch(self, wrapper: CallbackWrapper):
         pass
 
-    def end_batch(self, *args, **kwargs):
+    def end_batch(self, wrapper: CallbackWrapper):
         pass
 
     def __init__(self, frequency):

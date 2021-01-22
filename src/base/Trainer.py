@@ -21,7 +21,7 @@ import typing
 import utility
 
 from base import BaseModule
-from base.Callbacks.Callback import Callback, ListCallback
+from base.Callbacks.Callback import Callback, ListCallback, CallbackWrapper
 
 from tqdm.auto import tqdm
 
@@ -176,7 +176,11 @@ class Trainer:
         # define the epoch_metric type
         epoch_metric = Trainer._init_metric_obj(self.metric) if self.metric else None
 
-        for index_batch, (X, y) in enumerate(tqdm(loader, total=len(loader), unit="batch", leave=False)):
+        BATCH_NUMS = len(loader)
+        EPOCH = kwargs.get('epoch')
+
+        for index_batch, (X, y) in enumerate(tqdm(loader, total=BATCH_NUMS, unit="batch", leave=False)):
+
             index_batch = index_batch + 1
 
             self.logger.debug(f"Input received: {type(X)}")
@@ -193,10 +197,10 @@ class Trainer:
 
             if self.callback:
                 self.callback.start_batch(
-                    **self._create_args_for_callback(batch_index=index_batch,
-                                                     batch_size=BATCH_SIZE,
-                                                     batch_nums=len(loader),
-                                                     current_epoch=kwargs.get('epoch')))
+                    self._create_args_for_callback(batch_index=index_batch,
+                                                   batch_size=BATCH_SIZE,
+                                                   batch_nums=BATCH_NUMS,
+                                                   epoch=EPOCH))
 
             # move batch and targets to device
             self.logger.debug("Move X and y to the selected device")
@@ -238,15 +242,19 @@ class Trainer:
                 computed_metric = Trainer._execute_operation(operator.mul, computed_metric, BATCH_SIZE)
                 epoch_metric = Trainer._execute_operation(operator.add, epoch_metric, computed_metric)
 
+            train_metric = None
             if self.callback:
                 train_loss = epoch_loss / total_samples
-                train_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
+                if self.metric:
+                    train_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric,
+                                                          total_samples) if self.metric else None
+
                 self.callback.end_batch(
-                    **self._create_args_for_callback(batch_index=index_batch,
-                                                     batch_size=BATCH_SIZE,
-                                                     batch_nums=len(loader),
-                                                     current_epoch=kwargs.get('epoch'),
-                                                     train_state=self._return_training_state(train_loss, train_metric)))
+                    self._create_args_for_callback(batch_index=index_batch,
+                                                   batch_size=BATCH_SIZE,
+                                                   batch_nums=BATCH_NUMS,
+                                                   epoch=EPOCH,
+                                                   train_state=self._return_training_state(train_loss, train_metric)))
 
         # average the loss
         epoch_loss = epoch_loss / total_samples
@@ -274,6 +282,9 @@ class Trainer:
         """
         self.model.eval()
 
+        EPOCH = kwargs.get('epoch')
+        BATCH_NUMS = len(loader)
+
         epoch_loss = 0
 
         total_samples = 0
@@ -288,10 +299,10 @@ class Trainer:
 
             if self.callback:
                 self.callback.start_batch(
-                    **self._create_args_for_callback(batch_index=index_batch,
-                                                     batch_size=BATCH_SIZE,
-                                                     batch_nums=len(loader),
-                                                     current_epoch=kwargs.get('epoch')))
+                    self._create_args_for_callback(batch_index=index_batch,
+                                                   batch_size=BATCH_SIZE,
+                                                   batch_nums=BATCH_NUMS,
+                                                   epoch=EPOCH))
 
             X, y = self._move_to_device(X, y)
 
@@ -308,9 +319,11 @@ class Trainer:
                 computed_metric = Trainer._execute_operation(operator.mul, computed_metric, BATCH_SIZE)
                 epoch_metric = Trainer._execute_operation(operator.add, epoch_metric, computed_metric)
 
+            val_metric = None
             if self.callback:
                 val_loss = epoch_loss / total_samples
-                val_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
+                if self.metric:
+                    val_metric = Trainer._execute_operation(operator.__truediv__, epoch_metric, total_samples)
 
                 if isinstance(X, torch.Tensor):
                     X = X.detach().to(self.device)
@@ -321,13 +334,13 @@ class Trainer:
                         f"Invalid type for X. received: {type(X)}, expected: Tensor, Tuple[Tensor], List[Tensor].")
 
                 self.callback.end_batch(
-                    **self._create_args_for_callback(batch_index=index_batch,
-                                                     batch_size=BATCH_SIZE,
-                                                     batch_nums=len(loader),
-                                                     current_epoch=kwargs.get('epoch'),
-                                                     val_state=self._return_training_state(val_loss,
-                                                                                           val_metric),
-                                                     in_=X, out=out.detach()))
+                    self._create_args_for_callback(batch_index=index_batch,
+                                                   batch_size=BATCH_SIZE,
+                                                   batch_nums=BATCH_NUMS,
+                                                   epoch=EPOCH,
+                                                   val_state=self._return_training_state(val_loss,
+                                                                                         val_metric),
+                                                   X=X, out=out.detach()))
 
         epoch_loss = epoch_loss / total_samples
 
@@ -400,9 +413,8 @@ class Trainer:
                 break
 
             if self.callback:
-                self.callback.start_epoch(**self._create_args_for_callback(resuming=resuming,
-                                                                           epoch=epoch,
-                                                                           last_loss=last_loss)
+                self.callback.start_epoch(self._create_args_for_callback(epoch=epoch,
+                                                                         last_val_loss=last_loss)
                                           )
 
             train_state = self.train(train_loader, epoch=epoch)
@@ -415,14 +427,11 @@ class Trainer:
                 self.lr_scheduler.step()
 
             if self.callback:
-                self.callback.end_epoch(**self._create_args_for_callback(resuming=resuming,
-                                                                         epoch=epoch,
-                                                                         epochs=epochs,
-                                                                         train_state=train_state,
-                                                                         val_state=val_state,
-                                                                         current_history=history,
-                                                                         # TODO: Handle multiple param_groups
-                                                                         lr=self.optimizer.param_groups[0]['lr'])
+                self.callback.end_epoch(self._create_args_for_callback(epoch=epoch,
+                                                                       epochs=epochs,
+                                                                       train_state=train_state,
+                                                                       val_state=val_state,
+                                                                       history=history)
                                         )
 
         return history
@@ -708,7 +717,7 @@ class Trainer:
 
         return X, y
 
-    def _create_args_for_callback(self, **kwargs) -> Dict:
+    def _create_args_for_callback(self, **other_kwargs) -> CallbackWrapper:
         """ Return a dictionary of arguments to pass to callbacks
 
         Args:
@@ -721,14 +730,11 @@ class Trainer:
         """
 
         base_kwargs = {
-            "stop_fn": self._stop_fn,
-            "save_model_fn": self.save_model,
-            "log_dir": self.log_dir,
-            "optimizer": self.optimizer,
-            "train": self.model.training
+            'trainer': self
         }
+        kwargs = {**base_kwargs, **other_kwargs}
 
-        return {**base_kwargs, **kwargs}
+        return CallbackWrapper(**kwargs)
 
     @staticmethod
     def _execute_operation(operation, first, second):

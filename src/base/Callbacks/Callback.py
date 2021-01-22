@@ -5,6 +5,35 @@ logging.basicConfig()
 from abc import ABC, abstractmethod
 from typing import List
 
+class CallbackWrapper:
+    """ Class for containing key=value pair using OOP
+
+    Args:
+        kwargs: dictionary of key-value pairs
+
+    Keyword Args:
+        epochs : int
+        epoch  : int
+
+        trainer : Trainer
+        train_state: TrainingState
+        val_state : TrainingState
+
+        batch_index : int
+        batch_nums : int
+        batch_size : int
+
+        last_val_loss : float
+
+    """
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def __getattr__(self, item):
+        return self.__dict__.get(item) if item in self.__dict__ else None
+
 
 class Callback(ABC):
     """Define common operations to do before,after each epoch or batch"""
@@ -14,7 +43,7 @@ class Callback(ABC):
         self._logger.setLevel(logging.DEBUG)
 
     @abstractmethod
-    def start_epoch(self, *args, **kwargs):
+    def start_epoch(self, wrapper: CallbackWrapper):
         """Operation to do before train and validation in an epoch
 
         Keyword Args:
@@ -31,7 +60,7 @@ class Callback(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def end_epoch(self, *args, **kwargs):
+    def end_epoch(self, wrapper: CallbackWrapper):
         """Operation to do after train and validation in an epoch
 
         Keyword Args:
@@ -51,7 +80,7 @@ class Callback(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def start_batch(self, *args, **kwargs):
+    def start_batch(self, wrapper: CallbackWrapper):
         """Operation to do before processing the batch
 
         Keyword Args:
@@ -70,7 +99,7 @@ class Callback(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def end_batch(self, *args, **kwargs):
+    def end_batch(self, wrapper: CallbackWrapper):
         """Operation to do after the forwarding (and evaluation of the loss and metrics) of the batch
 
         Keyword Args:
@@ -100,21 +129,21 @@ class ListCallback(Callback):
         super(ListCallback, self).__init__()
         self.callbacks = list()
 
-    def start_epoch(self, *args, **kwargs):
+    def start_epoch(self, wrapper: CallbackWrapper):
         for callback in self.callbacks:
-            callback.start_epoch(*args, **kwargs)
+            callback.start_epoch(wrapper)
 
-    def end_epoch(self, *args, **kwargs):
+    def end_epoch(self, wrapper: CallbackWrapper):
         for callback in self.callbacks:
-            callback.end_epoch(*args, **kwargs)
+            callback.end_epoch(wrapper)
 
-    def start_batch(self, *args, **kwargs):
+    def start_batch(self, wrapper: CallbackWrapper):
         for callback in self.callbacks:
-            callback.start_batch(*args, **kwargs)
+            callback.start_batch(wrapper)
 
-    def end_batch(self, *args, **kwargs):
+    def end_batch(self, wrapper: CallbackWrapper):
         for callback in self.callbacks:
-            callback.end_batch(*args, **kwargs)
+            callback.end_batch(wrapper)
 
     def add_callback(self, callback: Callback):
         self.callbacks.append(callback)
