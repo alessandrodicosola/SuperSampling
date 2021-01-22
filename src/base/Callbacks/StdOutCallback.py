@@ -24,7 +24,7 @@ class StdOutCallback(Callback):
         torch.cuda.synchronize()
 
         elapsed_time_seconds = self.start.elapsed_time(self.end) // 1000
-        iteration = f"{wrapper.epoch}/{wrapper.epochs}"
+        iteration = f"{wrapper.epoch + 1}/{wrapper.epochs}"
         msg = f"{iteration} (elapsed time (s): {elapsed_time_seconds})"
         print(msg)
         print(train_state)

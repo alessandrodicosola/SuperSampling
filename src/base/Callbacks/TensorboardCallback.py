@@ -30,16 +30,28 @@ class TensorboardCallback(Callback):
     @staticmethod
     def get_plot_train_val(train, val, alpha=0.3):
         assert len(train) == len(val)
-
+        import matplotlib.pyplot as plt
         import pandas as pd
-        import seaborn as sbn
-        sbn.set(palette="Pastel1", style="white")
 
-        df_train = pd.DataFrame(train, columns=["train"])
-        df_val = pd.DataFrame(val, columns=["val"])
-        df = pd.concat([df_train,df_val], axis=1)
+        df = pd.DataFrame(zip(train, val), columns=["train", "val"])
 
-        return df.ewm(alpha=alpha).mean().plot.line()
+        fig, axis = plt.subplots()
+
+        color = "tab:orange"
+        axis.plot(df.train.values, alpha=0.25, color=color)
+        axis.plot(df.train.ewm(alpha=alpha).mean().values, color=color, linewidth=2, label="train")
+
+        color = "tab:blue"
+        axis.plot(df.val.values, alpha=0.25, color=color)
+        axis.plot(df.val.ewm(alpha=alpha).mean().values, color=color, linewidth=2, label="val")
+
+        axis.grid(alpha=0.3)
+        axis.legend()
+        axis.set_xlabel("Epoch")
+        axis.set_ylabel("Loss")
+
+        fig.tight_layout()
+        return fig
 
     @staticmethod
     def history_to_train_val_loss(history: 'HistoryState'):
