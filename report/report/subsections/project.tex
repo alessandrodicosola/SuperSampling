@@ -33,3 +33,20 @@ Among many configurations tried [\Cref{project:random-configurations}] the final
     Features DAB & 32 \\
     Features IDB & 32 
 \end{tabular}
+
+\subsection{The initial LR}
+
+\begin{figure}
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{project-train-val-loss-lr.png}
+        \caption{Loss values with lr: 0.01, 0.001, 0.0001}
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{project-val-psnr-ssim-lr.png}
+        \caption{PSNR and SSIM values with lr: 0.01 (gray), 0.001 (orange), 0.0001 (blue)}        
+    \end{subfigure}
+\end{figure}
+
+The initial learning rate is set to \textbf{0.001} based on the experiments done.
