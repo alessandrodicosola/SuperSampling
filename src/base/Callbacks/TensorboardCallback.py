@@ -30,7 +30,9 @@ class TensorboardCallback(Callback):
     @staticmethod
     def get_plot_train_val(train, val, alpha=0.3):
         assert len(train) == len(val)
+
         import matplotlib.pyplot as plt
+
         import pandas as pd
 
         df = pd.DataFrame(zip(train, val), columns=["train", "val"])
@@ -44,12 +46,11 @@ class TensorboardCallback(Callback):
         color = "tab:blue"
         axis.plot(df.val.values, alpha=0.25, color=color)
         axis.plot(df.val.ewm(alpha=alpha).mean().values, color=color, linewidth=2, label="val")
-
         axis.grid(alpha=0.3)
+
         axis.legend()
         axis.set_xlabel("Epoch")
         axis.set_ylabel("Loss")
-
         fig.tight_layout()
         return fig
 
