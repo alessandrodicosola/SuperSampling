@@ -40,13 +40,14 @@ Among many configurations tried [\Cref{project:random-configurations}] the final
     \begin{subfigure}{\textwidth}
         \centering
         \includegraphics[width=\textwidth, keepaspectratio]{project-train-val-loss-lr.png}
-        \caption{Loss values with lr: 0.01, 0.001, 0.0001}
+        \caption{Loss values with lr: 0.01 (right), 0.001(middle), 0.0001(left)}
     \end{subfigure}
     \begin{subfigure}{\textwidth}
         \centering
         \includegraphics[width=\textwidth, keepaspectratio]{project-val-psnr-ssim-lr.png}
         \caption{PSNR and SSIM values with lr: 0.01 (gray), 0.001 (orange), 0.0001 (blue)}        
     \end{subfigure}
+    \caption{Experiments with different \textit{lr}.}\label{project:lr-experiments}
 \end{figure}
 
-The initial learning rate is set to \textbf{0.001} based on the experiments done.
+The initial learning rate is set to \textbf{0.001} based on the experiments done (\Cref{project:lr-experiments}).
