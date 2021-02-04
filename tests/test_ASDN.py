@@ -1,3 +1,5 @@
+import math
+from functools import reduce
 from unittest import TestCase, skip
 
 from torch.utils.data import DataLoader
@@ -49,3 +51,31 @@ class TestASDN(PyTorchTest):
             print(f"Time passed (s): {start.elapsed_time(end) / 1000:.2f}")
 
             print(outputi.size())
+
+
+class TestASDN(TestCase):
+
+    def test_test_step(self):
+        def compute_last_patch_size(scale, patch_size):
+            scales = lfr.get_scales(scale)
+            scales = [lfr.get_for(scale)[-1].scale for scale in scales]
+            last_patch_size = patch_size
+            for scale in scales:
+                last_patch_size = last_patch_size * scale
+            return math.floor(last_patch_size)
+
+        lfr = LaplacianFrequencyRepresentation(1, 2, 11)
+        model = ASDN(3, lfr).cuda()
+
+        patch = torch.rand(8, 3, 48, 48).cuda()
+        print(patch.size())
+        print("x2", patch.size(-1) * 2)
+        print("x3.5", patch.size(-1) * 3.5)
+
+        scale = 2
+        out = model.test_step(scale, patch)
+        self.assertEqual(out.size(-1), compute_last_patch_size(scale, patch.size(-1)))
+
+        scale = 3.5
+        out = model.test_step(scale, patch)
+        self.assertEqual(out.size(-1), compute_last_patch_size(scale, patch.size(-1)))

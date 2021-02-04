@@ -390,5 +390,25 @@ class ASDN(BaseModule):
         return self.train_step(scale, low_res_batch_i_minus_1, low_res_batch_i)
 
     @torch.no_grad()
-    def test_step(self, scale, low_res_batch_i_minus_1, low_res_batch_i):
-        raise NotImplementedError
+    def test_step(self, scale, non_interpolated_patch: torch.Tensor):
+        # scales to apply at each recursion
+        scales = self.lfr.get_scales(scale)
+
+        patch = non_interpolated_patch
+
+        for scale in scales:
+            level_i_minus_1, level_i = self.lfr.get_for(scale)
+
+            patch_i = interpolating_fn(patch, scale_factor=level_i.scale)
+            OUT_SIZE = patch_i.size(-1)
+
+            patch_i = self(patch_i, level_i.index)
+
+            patch_i_minus_1 = interpolating_fn(patch, scale_factor=level_i_minus_1.scale)
+            patch_i_minus_1 = self(patch_i_minus_1, level_i_minus_1.index)
+            patch_i_minus_1 = interpolating_fn(patch_i_minus_1, size=(OUT_SIZE, OUT_SIZE))
+
+            phase = patch_i_minus_1 - patch_i
+            patch = patch_i + self.lfr.get_weight(scale) * phase
+
+        return patch
