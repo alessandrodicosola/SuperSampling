@@ -1,8 +1,11 @@
+import math
 from typing import Tuple
+
 import torch
 import torch.nn
-import math
 import torch.nn.functional
+
+from base.metrics.Metric import Metric
 
 
 def gaussian_filter(kernel_size: int, sigma: float = None) -> torch.Tensor:
@@ -56,33 +59,40 @@ def gaussian_filter(kernel_size: int, sigma: float = None) -> torch.Tensor:
     return kernel.unsqueeze(0)
 
 
-class SSIM(torch.nn.Module):
-    """Compute SSIM between two images
+class SSIM(Metric):
+    """Compute SSIM between two images.
+
+    Notes
+        No conversion is applied if RGB images are used: it's computd the mean over the channels.
 
     References:
         Zhou Wang, A. C. Bovik, H. R. Sheikh and E. P. Simoncelli,
         "Image quality assessment: from error visibility to structural similarity,"
         in IEEE Transactions on Image Processing, vol. 13, no. 4, pp. 600-612, April 2004, doi: 10.1109/TIP.2003.819861.
+
+    Args:
+        kernel_size_sigma: Tuple (kernel_size, sigma) for initialized gaussian kernel. Default: (11,1.5)
+        dynamic_range: Difference between max and min pixel values.
+        image_channels: Channels of the input images.
+        K1_K2: Tuple(float,float) for creating constants C1,C2. Default: (0.01, 0.03)
+        alph_beta_gamma: Exponents for computing ssim with luminance, contrast, structure. Default: (1,1,1)
+        reduction: Reduction applied to the final ssim. Default: None (return a Tensor [BATCH,SSIM]). Possible values: {mean, sum}.
+        denormalize_fn: None ?!
     """
 
-    def __init__(self, kernel_size_sigma: Tuple[int, float] = (11, 1.5),
-                 max_pixel_value: float = 255.,
-                 image_channels=3,
-                 K1_K2: Tuple[float, float] = (0.01, 0.03),
-                 alpha_beta_gamma: Tuple[float, float, float] = (1, 1, 1),
-                 reduction=None,
-                 denormalize_fn=None):
-        super(SSIM, self).__init__()
+    def __init__(self, kernel_size_sigma: Tuple[int, float] = (11, 1.5), dynamic_range: float = 255., image_channels=3,
+                 K1_K2: Tuple[float, float] = (0.01, 0.03), alpha_beta_gamma: Tuple[float, float, float] = (1, 1, 1),
+                 reduction=None):
+        super(SSIM, self).__init__(reduction=reduction)
         if not reduction:
-            raise RuntimeError("Trainer supports only metrics that returns float: .items() at the end.")
-
-        self.denormalize_fn = denormalize_fn
+            raise RuntimeError(
+                "Trainer supports only metrics that returns float: .items() at the end. Use reduction={mean, sum}")
 
         self.reduction = reduction
 
         K1, K2 = K1_K2
-        self.C1 = (max_pixel_value * K1) ** 2
-        self.C2 = (max_pixel_value * K2) ** 2
+        self.C1 = (dynamic_range * K1) ** 2
+        self.C2 = (dynamic_range * K2) ** 2
         self.C3 = self.C2 / 2
 
         self.alpha, self.beta, self.gamma = alpha_beta_gamma
@@ -94,8 +104,7 @@ class SSIM(torch.nn.Module):
                              gaussian_filter(kernel_size=kernel_size, sigma=sigma).repeat(image_channels, 1, 1, 1),
                              persistent=True)
 
-    @torch.no_grad()
-    def forward(self, prediction: torch.Tensor, target: torch.Tensor):
+    def compute_values_per_batch(self, *args: torch.Tensor):
         """
 
         Args:
@@ -110,11 +119,7 @@ class SSIM(torch.nn.Module):
             https://github.com/photosynthesis-team/piq/blob/5f907063f5abe357173a5bed1126b07d46f1b6ac/piq/ssim.py#L350
 
         """
-        prediction = prediction if not self.denormalize_fn else self.denormalize_fn(
-            prediction)
-        target = target if not self.denormalize_fn else self.denormalize_fn(
-            prediction)
-
+        prediction, target = args
         if prediction.size() != target.size():
             raise RuntimeError("Size mismatching between prediction and target.")
 
@@ -129,20 +134,12 @@ class SSIM(torch.nn.Module):
             # insert batch axis
             prediction, target = prediction.unsqueeze(0), target.unsqueeze(0)
 
-        # compute mean ssim over channel dimensions
         ssim_batch = self._compute_ssim_single(prediction, target, channels)
-
+        # compute mean ssim over channel dimensions
         ssim_batch = ssim_batch.mean(dim=1)
 
-        # compute the ssim over batches
-        if self.reduction == "sum":
-            return ssim_batch.sum(dim=0).item()
-        elif self.reduction == "mean":
-            return ssim_batch.mean(dim=0).item()
-        else:
-            return ssim_batch
+        return ssim_batch
 
-    @torch.no_grad()
     def _compute_ssim_single(self, prediction: torch.Tensor, target: torch.Tensor, channels: int):
         """
         Compute SSIM between two batches of images
@@ -177,24 +174,36 @@ class SSIM(torch.nn.Module):
                                                 groups=channels) - mu_y_sq
         sigma_xy = torch.nn.functional.conv2d(input=prediction * target, weight=self.gaussian_kernel, stride=1,
                                               padding=0, groups=channels) - mu_xy
-        luminance = self._luminance(mu_xy, mu_x_sq, mu_y_sq)
+
+        # with C3 = C2 / 1 and alpha,beta,gamma equals to 1 SSIM contains only luminance and contrast
+        left = self._ssim_simplified_1(mu_xy, mu_x_sq, mu_y_sq)
 
         del mu_x_sq
         del mu_y_sq
         del mu_xy
 
-        contrast = self._contrast(sigma_xy, sigma_x_sq, sigma_y_sq)
+        right = self._ssim_simplified_2(sigma_xy, sigma_x_sq, sigma_y_sq)
 
-        # with C3 = C2 / 1 and alpha,beta,gamma equals to 1 SSIM contains only luminance and contrast
         # compute mean over spatial dimensions
+        return (left * right).mean(dim=[-1, -2])
 
-        return (luminance * contrast).mean(dim=[-1, -2])
-
-    def _luminance(self, mu_xy, mu_x_sq, mu_y_sq):
+    def _ssim_simplified_1(self, mu_xy, mu_x_sq, mu_y_sq):
         return (2 * mu_xy + self.C1) / (mu_x_sq + mu_y_sq + self.C1)
 
-    def _contrast(self, sigma_xy, sigma_x_sq, sigma_y_sq):
+    def _ssim_simplified_2(self, sigma_xy, sigma_x_sq, sigma_y_sq):
         return (2 * sigma_xy + self.C2) / (sigma_x_sq + sigma_y_sq + self.C2)
+
+    def _luminance(self, mu_x, mu_y):
+        return (2 * mu_x * mu_y + self.C1) / (torch.pow(mu_x, 2) + torch.pow(mu_y, 2) + self.C1)
+
+    def _contrast(self, sigma_x, sigma_y):
+        return (2 * sigma_x * sigma_y + self.C2) / (torch.pow(sigma_x, 2) + torch.pow(sigma_y, 2) + self.C2)
 
     def _structure(self, sigma_xy, sigma_x, sigma_y):
         return (sigma_xy + self.C3) / (sigma_x * sigma_y + self.C3)
+
+    def _ssim(self, mu_x, mu_y, sigma_x, sigma_y, sigma_xy):
+        return \
+            torch.pow(self._luminance(mu_x, mu_y), self.alpha) + \
+            torch.pow(self._contrast(sigma_x, sigma_y), self.beta) + \
+            torch.pow(self._structure(sigma_xy, sigma_x, sigma_y), self.gamma)

@@ -1,8 +1,10 @@
 import torch
 import torch.nn
 
+from base.metrics.Metric import Metric
 
-class PSNR(torch.nn.Module):
+
+class PSNR(Metric):
     """
     Compute the Peak Signal to Noise Ratio as:
 
@@ -16,17 +18,14 @@ class PSNR(torch.nn.Module):
     """
 
     def __init__(self, max_pixel_value: float = 255., reduction=None, denormalize_fn=None):
-        super(PSNR, self).__init__()
+        super(PSNR, self).__init__(reduction=reduction)
         self.denormalize_fn = denormalize_fn
         self.max_pixel_value = max_pixel_value
         self.eps = 1e-8
-        self.reduction = reduction
 
-        if not reduction:
-            raise RuntimeError("Trainer supports only metrics that returns float")
+    def compute_values_per_batch(self, *args) -> torch.Tensor:
+        prediction, target = args
 
-    @torch.no_grad()
-    def forward(self, prediction: torch.Tensor, target: torch.Tensor):
         if prediction.size() != target.size():
             raise RuntimeError(
                 f"Sizes are mismatching: (predictions) {prediction.size()} != (target) {target.size()}")
@@ -51,9 +50,4 @@ class PSNR(torch.nn.Module):
                            100 * torch.ones_like(mse),
                            - 10 * torch.log10(mse))
 
-        if self.reduction == "mean":
-            return psnr.mean(dim=batch_dim).item()
-        elif self.reduction == "sum":
-            return psnr.sum(dim=batch_dim).item()
-        else:
-            return psnr
+        return psnr
