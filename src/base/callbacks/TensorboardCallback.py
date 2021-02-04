@@ -7,11 +7,11 @@ from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
 
 import base.logging_
-from base.Callbacks import Callback
+from base.callbacks import Callback
 
 import math
 
-from base.Callbacks.Callback import CallbackWrapper
+from base.callbacks.Callback import CallbackWrapper
 
 
 class TensorboardCallback(Callback):

@@ -1,7 +1,7 @@
-from base.Callbacks import Callback
+from base.callbacks import Callback
 import math
 import base.logging_
-from base.Callbacks.Callback import CallbackWrapper
+from base.callbacks.Callback import CallbackWrapper
 
 
 class EarlyStoppingCallback(Callback):

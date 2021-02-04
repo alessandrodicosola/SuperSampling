@@ -1,7 +1,7 @@
 from collections import namedtuple
 
-from base.Callbacks import Callback
-from base.Callbacks.Callback import CallbackWrapper
+from base.callbacks import Callback
+from base.callbacks.Callback import CallbackWrapper
 
 
 class CheckpointCallback(Callback):

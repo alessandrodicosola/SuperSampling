@@ -6,7 +6,7 @@ import torch
 import torch.nn
 import torch.utils.checkpoint
 
-from datasets.ASDNDataset import interpolating_fn
+from base.functional import interpolating_fn
 
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 

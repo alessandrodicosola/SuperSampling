@@ -1,6 +1,5 @@
 import math
 import random
-from functools import partial
 from pathlib import Path
 from typing import Dict, List, Union
 
@@ -9,20 +8,18 @@ import torch.nn.functional
 import torch.utils.data
 import torchvision.transforms
 
+from base.functional import interpolating_fn
+from datasets.ImageDataset import ImageDataset
+from base.transforms.NormalizeInverse import NormalizeInverse
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 
 import pickle
 
 import PIL
 
-interpolating_fn = partial(torch.nn.functional.interpolate,
-                           mode="bicubic",
-                           align_corners=False,
-                           recompute_scale_factor=False)
-
 
 # put collate_fn at top level in order to be pickable and used inside DataLoader
-def collate_fn(batch, lfr: LaplacianFrequencyRepresentation):
+def create_batch_for_training(batch, lfr: LaplacianFrequencyRepresentation):
     """Function for generating a batch
 
     Args:
@@ -85,38 +82,14 @@ def compute_mean_std(path: str) -> Dict[str, List[float]]:
                 std  : List[float]
             }
     """
-
-    from pathlib import Path
-    import PIL.Image as PIL
     from tqdm.auto import tqdm
-    path = Path(path)
-
-    class ImageDataset(torch.utils.data.Dataset):
-        """Simple Dataset that returns image from a folder
-
-        Args:
-            path: relative or absolute path of the folder that contains images
-            format: format of the images (Default: png)
-        """
-
-        def __init__(self, path: str, format: str = "png"):
-            path = Path(path)
-            self.files = list(path.glob(f"*.{format}"))
-            self.to_tensor = torchvision.transforms.ToTensor()
-
-        def __len__(self):
-            return len(self.files)
-
-        def __getitem__(self, index) -> torch.Tensor:
-            with open(self.files[index], "rb") as image_file:
-                return self.to_tensor(PIL.open(image_file))
 
     dataset = ImageDataset(path)
     loader = torch.utils.data.DataLoader(dataset, batch_size=32, num_workers=8)
 
     total: int = dataset.__len__()
-    mean: torch.Tensor = 0
-    std: torch.Tensor = 0
+    mean: torch.Tensor = torch.empty()
+    std: torch.Tensor = torch.empty()
 
     for batch in tqdm(loader, total=total, unit="image"):
         image = batch.view(batch.size(0), batch.size(1), -1)
@@ -127,33 +100,9 @@ def compute_mean_std(path: str) -> Dict[str, List[float]]:
             "std": (std / total).tolist()}
 
 
-class NormalizeInverse(torchvision.transforms.Normalize):
-    def __init__(self, max_pixel_value, mean: List[float], std: List[float]) -> None:
-        """Reconstructs the images in the input domain by inverting
-        the normalization transformation.
-
-        Args:
-            max_pixel_value: 1 if intensities are normalized else 255
-            mean: the mean used to normalize the images.
-            std: the standard deviation used to normalize the images.
-        """
-        assert max_pixel_value in [1, 255]
-        self.max_pixel_value = max_pixel_value
-
-        mean = torch.as_tensor(mean)
-        std = torch.as_tensor(std)
-        std_inv = 1 / (std + 1e-7)
-        mean_inv = -mean * std_inv
-        super().__init__(mean=mean_inv, std=std_inv)
-
-    def __call__(self, tensor):
-        return super().__call__(tensor.clone()).clamp(0, self.max_pixel_value)
-
-
 class ASDNDataset(torch.utils.data.Dataset):
     """Define the Dataset class used for constructing batches for ASDN network
 
-    NOTE: In the paper is not clear how targets are created therefore this will be my pipeline:
     * 1. Crop a high-res patch with size (patch_size * end, patch_size * end)
     * 2. Create ground truth resizing using the best algorithm
     * 3. Create low-res patch resize using worst algorithm

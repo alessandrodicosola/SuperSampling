@@ -5,7 +5,8 @@ from unittest import TestCase, skip
 import unittest
 from torch.utils.data import DataLoader
 import torch
-from datasets.ASDNDataset import ASDNDataset, collate_fn, NormalizeInverse
+from datasets.ASDNDataset import ASDNDataset, create_batch_for_training
+from base.transforms.NormalizeInverse import NormalizeInverse
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 from tests.pytorch_test import PyTorchTest
 
@@ -19,7 +20,7 @@ class TestASDNDataset(PyTorchTest):
         self.lfr = LFR
 
         self.DATASET = ASDNDataset("DIV2K_valid_HR", patch_size=PATCH_SIZE, lfr=LFR)
-        self.COLLATE_FN = partial(collate_fn, lfr=LFR)
+        self.COLLATE_FN = partial(create_batch_for_training, lfr=LFR)
 
         NUM_WORKERS = 4
         self.DATALOADER = DataLoader(self.DATASET, num_workers=NUM_WORKERS, batch_size=BATCH_SIZE, pin_memory=True,

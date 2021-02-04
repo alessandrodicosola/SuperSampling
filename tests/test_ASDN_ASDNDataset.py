@@ -9,7 +9,9 @@ from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
 from tqdm.auto import tqdm
 
-from datasets.ASDNDataset import ASDNDataset, collate_fn, interpolating_fn, NormalizeInverse
+from datasets.ASDNDataset import ASDNDataset, create_batch_for_training
+from base.functional import interpolating_fn
+from base.transforms.NormalizeInverse import NormalizeInverse
 from models.ASDN import ASDN
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 
@@ -30,7 +32,7 @@ class TestASDNASDNDataset(PyTorchTest):
         # no more no less
         BATCH_SIZE = 8
 
-        COLLATE_FN = partial(collate_fn, lfr=self.lfr)
+        COLLATE_FN = partial(create_batch_for_training, lfr=self.lfr)
         dataset = ASDNDataset(R"DIV2K_valid_HR", self.PATCH_SIZE, self.lfr)
         self.denormalize = ASDNDataset.denormalize_fn()
         self.dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, num_workers=6, pin_memory=True,

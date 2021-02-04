@@ -3,36 +3,28 @@ from __future__ import annotations
 import math
 import operator
 import re
-
-from collections import namedtuple, defaultdict
+import typing
+from collections import namedtuple
 from itertools import starmap
 from pathlib import Path
+from typing import NoReturn, Union, List, Dict, NamedTuple, Callable, Tuple
 
 import torch
 import torch.optim
+import torch.optim.lr_scheduler
 import torch.utils.data
 import torch.utils.tensorboard
-import torch.optim.lr_scheduler
-
-from typing import NoReturn, Union, List, Dict, NamedTuple, Callable, Tuple
-
-import typing
-
-import utility
-
-from base import BaseModule
-from base.Callbacks.Callback import Callback, ListCallback, CallbackWrapper
-
 from tqdm.auto import tqdm
 
 import base.logging_
-
-from base.Callbacks import Callback, ListCallback, StdOutCallback
-from base.Callbacks.TensorboardCallback import TensorboardCallback
-from base.hints import Criterion, Metric
-
+import utility
+from base import BaseModule
+from base.callbacks import Callback, ListCallback, StdOutCallback
+from base.callbacks.Callback import CallbackWrapper
+from base.hints import Criterion
 # TODO: Implement generic output stream (stdout, file, web)
-# TODO: Create an abstract general class for Metric
+# TODO: Comment
+from base.metrics.Metric import Metric
 
 ModelInformation = typing.NamedTuple('ModelInformation', [
     ("name", str),
@@ -425,7 +417,10 @@ class Trainer:
             history.val.append(val_state)
 
             if self.lr_scheduler:
-                self.lr_scheduler.step()
+                if self._param_in_function(self.lr_scheduler.step, "metrics"):
+                    self.lr_scheduler.step(val_state.loss)
+                else:
+                    self.lr_scheduler.step()
 
             if self.callback:
                 self.callback.end_epoch(self._create_args_for_callback(epoch=epoch,
@@ -436,6 +431,15 @@ class Trainer:
                                         )
 
         return history
+
+    def _param_in_function(self, function, *params):
+        from inspect import signature
+        parameters = signature(function).parameters
+        flag = True
+        for param in params:
+            flag = flag and (param in parameters)
+
+        return flag
 
     def _init_param_for_resuming(self, key, default):
         """Define a function for initialize parameters for resuming
@@ -783,6 +787,9 @@ class Trainer:
             raise RuntimeError(type(first))
 
     def save_model(self, comment: str):
+        """ Save state dictionary of the model on log_dir / checkpoints / model_info_comment.pytorch
+
+        """
         checkpoint_path = self.log_dir / "checkpoints"
         self.logger.debug(f"Saving model at {checkpoint_path}")
 
@@ -790,7 +797,7 @@ class Trainer:
             checkpoint_path.mkdir(parents=True)
 
         checkpoint_path /= f"{self.model_info.name}_{comment}.pytorch"
-        torch.save(self.model, checkpoint_path)
+        torch.save(self.model.state_dict(), checkpoint_path)
 
         self.logger.debug("Saving complete")
 

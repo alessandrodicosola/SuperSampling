@@ -1,6 +1,6 @@
 import torch
 
-from base.Callbacks.Callback import Callback, CallbackWrapper
+from base.callbacks.Callback import Callback, CallbackWrapper
 
 
 class StdOutCallback(Callback):

@@ -9,8 +9,9 @@ from torch import Tensor
 from torch.nn import Module
 from torch.optim import Optimizer
 
-from base.Callbacks import Callback
-from base.hints import Metric, Criterion
+from base.callbacks import Callback
+from base.hints import Criterion
+from base.metrics import Metric
 
 
 class PyTorchTest(unittest.TestCase, ABC):

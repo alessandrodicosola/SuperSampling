@@ -9,11 +9,11 @@ from torch.optim import Adam, Optimizer
 from torch.utils.data import DataLoader, Dataset
 
 from base import BaseModule
-from base.Callbacks.EarlyStoppingCallback import EarlyStoppingCallback
+from base.callbacks.EarlyStoppingCallback import EarlyStoppingCallback
 from base.Trainer import Trainer
 from base.hints import Criterion
 
-from datasets.ASDNDataset import ASDNDataset, collate_fn
+from datasets.ASDNDataset import ASDNDataset, create_batch_for_training
 from models.ASDN import ASDN
 from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresentation
 from tests.pytorch_test import PyTorchTest
@@ -22,7 +22,7 @@ from tests.util_for_testing import RandomDataset, NetworkOneInput, NetworkTwoInp
 class TestForwardASDN(PyTorchTest):
     def before(self):
         LFR = LaplacianFrequencyRepresentation(1, 2, 11)
-        COLLATE_FN = partial(collate_fn, lfr=self.LFR)
+        COLLATE_FN = partial(create_batch_for_training, lfr=self.LFR)
 
         VAL_DATASET = ASDNDataset("DIV2K_valid_HR", 24, LFR)
         self.VAL_DATALOADER = DataLoader(VAL_DATASET, 64, False, num_workers=4, collate_fn=COLLATE_FN)
