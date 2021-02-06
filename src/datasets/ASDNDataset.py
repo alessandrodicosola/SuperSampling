@@ -123,6 +123,12 @@ class ASDNDataset(torch.utils.data.Dataset):
                                 mean=[0.4484562277793884, 0.4374960660934448, 0.40452802181243896],
                                 std=[0.2436375468969345, 0.23301854729652405, 0.24241816997528076])
 
+    @staticmethod
+    def normalize_fn():
+        mean_std_dict = dict(mean=[0.4484562277793884, 0.4374960660934448, 0.40452802181243896],
+                             std=[0.2436375468969345, 0.23301854729652405, 0.24241816997528076])
+        return torchvision.transforms.Normalize(**mean_std_dict)
+
     def __init__(self,
                  folder: Union[str, Path],
                  patch_size: int,

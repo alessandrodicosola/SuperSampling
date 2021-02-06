@@ -123,7 +123,8 @@ if __name__ == "__main__":
 
     device = torch.device("cuda:0")
 
-    dataset_name = "historical"
+    # folder name
+    dataset_name = "Set5"
 
     dataset_path = get_datasets_dir() / "Test" / dataset_name
     dataset = TestDataset([3.5, 4], dataset_path)

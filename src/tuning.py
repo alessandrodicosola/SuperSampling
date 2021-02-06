@@ -1,7 +1,7 @@
 ###
 ### Find if a particular architecture is able to complete an epoch with a particular batch_size
 ###
-
+from functools import partial
 
 from run_exepriment import run, fix_randomness
 import random
@@ -43,12 +43,57 @@ def tune_lr(**model_kwargs):
         run("LR", epochs=10, n_workers=2, pin_memory=True, batch_size=8, save_checkpoints=1, save=False, **kwargs)
 
 
+def tune_lr_scheduler(**model_kwargs):
+    import numpy as np
+    from torch.optim.lr_scheduler import StepLR
+    # 100 epochs * 3 experiments = 2.5 hours
+    n_experiments = 3
+
+    for _ in range(n_experiments):
+        random.seed()
+        step_size = random.randrange(10, 25, 10)
+
+        random.seed()
+        gamma = random.choice([elem for elem in np.arange(0.1, 1.0, 0.1)])
+
+        lr_scheduler = partial(StepLR, step_size=step_size, gamma=gamma)
+
+        other_kwargs = {"lr_scheduler": lr_scheduler, "lr": 1e-3}
+
+        kwargs = {**model_kwargs, **other_kwargs}
+
+        fix_randomness(2020)
+        run("LR_SCHEDULER", epochs=100, n_workers=4, pin_memory=True, batch_size=8, save_checkpoints=1, save=False,
+            **kwargs)
+
+
+def check_lr_scheduler_performance(lr_scheduler, epochs, **model_kwargs):
+    other_kwargs = {"lr_scheduler": lr_scheduler, "lr": 1e-3}
+    kwargs = {**model_kwargs, **other_kwargs}
+
+    run("LR_SCHEDULER", epochs=epochs, n_workers=4, pin_memory=True, batch_size=8, save_checkpoints=1, save=False,
+        **kwargs)
+
+
+def check_step_lr(**model_kwargs):
+    lr_scheduler = partial(StepLR, step_size=40, gamma=0.1)
+    check_lr_scheduler_performance(lr_scheduler, epochs=200, **model_kwargs)
+
+
+def check_reduce_lr_on_plateau(**model_kwargs):
+    lr_scheduler = partial(ReduceLROnPlateau, mode="min", factor=0.5, patience=10, verbose=True)
+    check_lr_scheduler_performance(lr_scheduler, epochs=200, **model_kwargs)
+
+
 if __name__ == "__main__":
-    fix_randomness(2020)
+    from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
+
     model_kwargs = {
         "n_dab": 8,
         "n_intra_layers": 4,
         "out_channels_dab": 32,
         "intra_layer_output_features": 32
     }
-    tune_lr(**model_kwargs)
+
+    fix_randomness(2020)
+    check_step_lr(**model_kwargs)
