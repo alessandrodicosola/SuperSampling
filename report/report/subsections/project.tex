@@ -1,7 +1,38 @@
+%Local preamble
+
+\newcommand{\drawtestimages}[3]{%
+% 1: true label: e.g. Urban100
+% 2: root image : project-urban-100
+% 3: scale
+    \begin{figure}
+        \begin{subfigure}{0.5\textwidth}
+            \centering
+            \includegraphics[scale=#3]{#2-input}
+            \caption{Input}
+        \end{subfigure}
+        \begin{subfigure}{0.5\textwidth}
+            \centering
+            \includegraphics[scale=#3]{#2-gt}
+            \caption{Ground truth.}
+        \end{subfigure}
+        \begin{subfigure}{0.5\textwidth}
+            \centering
+            \includegraphics[scale=#3]{#2-bicubic}
+            \caption{Bicubic.}
+        \end{subfigure}
+        \begin{subfigure}{0.5\textwidth}
+            \centering
+            \includegraphics[scale=#3]{#2-output}
+            \caption{Output.}
+        \end{subfigure}
+        \caption{Base model applied to #1.}
+    \end{figure}
+}
+
 \section{Project}
 
 \subsection{Hardware}
-The following hardware is used:
+The following hardware was used:
 \begin{itemize}
     \item GTX1060 (6 GB)
 \end{itemize}
@@ -27,16 +58,20 @@ The following hardware is used:
 In order to train the default configuration an implementation trick can be used (\textbf{save checkpoint}\footnote{\href{https://pytorch.org/docs/stable/checkpoint.html}{PyTorch checkpoint}}): avoid to store gradient and activations during the forward pass and recompute them during the backward pass; but this increase the training time of a \textbf{single batch} as we can see from \Cref{project:batch-time}
 
 Among many configurations tried [\Cref{project:random-configurations}] the final configuration chosen uses half the parameters with respect to the default configuration:
-\begin{tabular}{lc}
-    DABs & 8\\
-    IDBs & 4\\
-    Features DAB & 32 \\
-    Features IDB & 32 
+
+\begin{tabular}{lcc}
+    & Project architecture & Paper architecture \\
+    DABs & 8 & 16 \\
+    IDBs & 4 & 8 \\
+    Features DAB & 32 & 64 \\
+    Features IDB & 32 & 64 
 \end{tabular}
 
-\subsection{The initial LR}
+\subsection{Experiments}
 
-\begin{figure}
+\subsubsection{The initial LR}
+
+\begin{figure}[h]
     \begin{subfigure}{\textwidth}
         \centering
         \includegraphics[width=\textwidth, keepaspectratio]{project-train-val-loss-lr.png}
@@ -51,3 +86,124 @@ Among many configurations tried [\Cref{project:random-configurations}] the final
 \end{figure}
 
 The initial learning rate is set to \textbf{0.001} based on the experiments done (\Cref{project:lr-experiments}).
+
+\subsubsection{Overfitting}
+
+In order to see if the network was capable to learn the mapping some overfitting experiments were done [\Cref{project:overfitting-experiments}]: neither increasing the epochs (red) nor the complexity of the model(light blue) lead to overfitting with respect to the baseline (dark blue) [\Cref{project:model-overfitting-complexity}].
+
+Moreover the noisy loss could be caused by the regularization action of the small batch size and by training data downsampled using a bilinear interpolation which can be seen as an data augmentation used for generalization and regularization of the network.
+
+An lr scheduler was used in order to try to decrease further the loss but without success (\Cref{project:lr-scheduler-experiments}).
+
+
+\begin{table}
+    \centering
+    \makebox[\textwidth]{
+        \begin{tabular}{l|ccc}
+            & Paper model & Base model(dark blue) & Complex model (light blue) \\
+            Total params & 22,405,168 & 828,928 & 1,111,270 \\
+            Trainable params & 22,405,168 & 828,928 & 1,111,270 \\
+            Non trainable params  & 0 & 0 & 0 \\
+            \hline 
+            Input size (MB) & 0.84 & 0.84 & 0.84 \\
+            Forward/Backward pass size (MB) & 10231.38 & 4911.24 & 5281.37 \\
+            Params size (MB) & 85.47 & 3.16 & 4.24 \\
+            Estimated total size & 10317.70 & 4915.24 & 5286.45                    
+        \end{tabular}
+    }    
+    \caption{Comparison complexity between models.}\label{project:model-overfitting-complexity}
+\end{table}
+
+\begin{figure}[H]
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{project-overfitting.png}
+        \caption{Loss.}        
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{project-overfitting-trainval.png}
+        \caption{Train-Val loss.}
+    \end{subfigure}    
+        \caption{Overfitting experiments.}\label{project:overfitting-experiments}           
+\end{figure}
+
+\begin{figure}[H]
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{project-lr-scheduler.png}
+        \caption{Train-Val loss with StepLR(green) and ReduceLROnPlateau(pink).}
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{project-lr-scheduler-lr.png}
+        \caption{LR trend with StepLR(green) and ReduceLROnPlateau(pink).}
+    \end{subfigure}
+    \caption{LR scheduler experiments.}\label{project:lr-scheduler-experiments}
+\end{figure}
+
+\subsubsection{Training}
+
+The network was trained for 500 epochs without and with data augmentation (random vertical flip, random horizontal flip, random 90 degree rotation) in order to increase patches seen without increasing the number of images and therefore without increasing training time and  aggressively reducing the lr in order to see an improvement of the loss.
+
+In both case the loss is steady to \textasciitilde 0.6 and no real difference between outputs can be seen [\Cref{project:training}] .
+
+\begin{figure}[H]
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=0.9\textwidth, keepaspectratio]{project-training-time.png}
+        \caption{Training time.}
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=0.9\textwidth, keepaspectratio]{project-training-lr.png}
+        \caption{Learning rate over time.}
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{project-training-val-loss.png}
+        \caption{Train-Val loss.}
+    \end{subfigure}
+    \caption{Training with 500 epochs.}
+\end{figure}
+
+\begin{figure}[H]
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{project-input-e500.png}
+        \caption{Input.}
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth, keepaspectratio]{project-output-e500.png}
+        \caption{Output.}
+    \end{subfigure}
+    \caption{Validation images at 500-th epoch.}\label{project:training}
+\end{figure}
+
+\subsubsection{Testing}
+
+The following are the results of the base model during testing with:
+
+\footnotetext{Ground truth images were already LR images}
+\begin{tabular}{l|cc}
+    Dataset & PSNR & SSIM \\
+    \hline
+    BSDS100 & 13.489 & 0.900 \\
+    Manga109 & 11.834 & 0.890 \\
+    Set14 & 13.220 & 0.905 \\
+    Set5 & 11.893 & 0.875 \\
+    Urban100 & 12.665 & 0.985 \\
+    historical\footnotemark & 13.821 & 0.922
+\end{tabular}
+
+The only comparison is done with bicubic interpolation. 
+The network is able to reconstruct sharp edges but unable to restore all the details from the original image. 
+
+\drawtestimages{Urban100}{project-urban-100}{0.168} %OK
+\drawtestimages{Manga109}{project-manga-109}{0.20} %OK
+\drawtestimages{Set5}{project-set-5}{0.75} %OK
+\drawtestimages{Set14}{project-set-14}{0.43} %OK 
+\drawtestimages{BSDS100}{project-bsds-100}{0.52} %OK
+\drawtestimages{historical}{project-historical}{0.78} %OK
+
