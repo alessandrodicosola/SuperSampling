@@ -7,7 +7,6 @@ import PIL.Image as Image
 import torchvision
 from torch.utils.data import Dataset
 
-from base.functional import extract_patch
 from datasets.ASDNDataset import ASDNDataset
 import torchvision.transforms.functional as F
 

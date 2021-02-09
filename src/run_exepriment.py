@@ -211,7 +211,7 @@ def run(experiment: str,
     L1 = L1Loss(reduction='mean').to(device)
 
     # Define the metrics
-    METRICS = [PSNR(max_pixel_value=1.0, reduction='mean', denormalize_fn=ASDNDataset.denormalize_fn()),
+    METRICS = [PSNR(dynamic_range=1.0, reduction='mean', denormalize_fn=ASDNDataset.denormalize_fn()),
                SSIM(dynamic_range=1.0, reduction='mean')]
 
     # Define the trainer

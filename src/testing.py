@@ -50,15 +50,16 @@ def testing(dataset: TestDataset, device, model_state_dict_path: Path, **model_k
     denorm_fn = ASDNDataset.denormalize_fn()
 
     # Create test logger
-    log_dir = get_models_dir() / model.__class__.__name__ / f"TESTING_{dataset_name}"
+    test_folder = f"TESTING_{dataset.name}_denorm"
+    log_dir = get_models_dir() / model.__class__.__name__ / test_folder
     writer = SummaryWriter(log_dir=str(log_dir))
 
     psnr_total = 0
     ssim_total = 0
     total = len(dataset)
 
-    ssim_fn = SSIM(reduction="sum").to(device)
-    psnr_fn = PSNR(reduction="sum", max_pixel_value=1, denormalize_fn=ASDNDataset.denormalize_fn()).to(device)
+    ssim_fn = SSIM(reduction="sum", dynamic_range=1.).to(device)
+    psnr_fn = PSNR(reduction="sum", dynamic_range=1.).to(device)
 
     for index, (scale, lr, gt) in enumerate(tqdm(dataloader, total=total, unit='image')):
         global_step = index + 1
@@ -67,14 +68,20 @@ def testing(dataset: TestDataset, device, model_state_dict_path: Path, **model_k
         lr = lr.to(device)
         out = model.test_step(scale, lr)
 
-        # sometimes new_size is greater than out due to neighbours
+        # sometimes new_size is greater than out due to neighbour levels
+
         new_width = out.size(-1)
         # resize gt
         gt = F.resize(gt, [new_width] * 2).to(device)
 
-        # .float() because got errors
-        cur_psnr = psnr_fn(out.float(), gt.float())
-        cur_ssim = ssim_fn(out.float(), gt.float())
+        # .float()/.double() because got errors
+        # assert gt.max() <= 1 and gt.min() >= 0
+        # img = denorm_fn(out.float())
+        # assert img.max() <= 1 and img.min() >= 0
+
+        cur_psnr = psnr_fn(denorm_fn(out.float()), gt.float())
+        cur_ssim = ssim_fn(denorm_fn(out.float()), gt.float())
+
         psnr_total += cur_psnr
         ssim_total += cur_ssim
 
@@ -124,10 +131,11 @@ if __name__ == "__main__":
     device = torch.device("cuda:0")
 
     # folder name
-    dataset_name = "Set5"
+    dataset_names = ["Set5", "Set14", "historical", "Urban100", "Manga109", "BSDS100"]
 
-    dataset_path = get_datasets_dir() / "Test" / dataset_name
-    dataset = TestDataset([3.5, 4], dataset_path)
-    dataset.name = dataset_name
+    for dataset_name in dataset_names:
+        dataset_path = get_datasets_dir() / "Test" / dataset_name
+        dataset = TestDataset([3.5, 4], dataset_path)
+        dataset.name = dataset_name
 
-    testing(dataset, device, model_state_dict_path, **model_kwargs)
+        testing(dataset, device, model_state_dict_path, **model_kwargs)

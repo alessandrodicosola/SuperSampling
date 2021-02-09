@@ -87,6 +87,7 @@ class SSIM(Metric):
         if not reduction:
             raise RuntimeError(
                 "Trainer supports only metrics that returns float: .items() at the end. Use reduction={mean, sum}")
+        self.dynamic_range = dynamic_range
 
         self.reduction = reduction
 
@@ -120,6 +121,9 @@ class SSIM(Metric):
 
         """
         prediction, target = args
+        prediction = prediction / self.dynamic_range
+        target = target / self.dynamic_range
+
         if prediction.size() != target.size():
             raise RuntimeError("Size mismatching between prediction and target.")
 

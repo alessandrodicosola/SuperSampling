@@ -13,14 +13,14 @@ class PSNR(Metric):
         PSNR = 10 \cdot \log_10 \\frac{MAX_I^2}{\sqrt{MSE_{P,T}}}
 
     Args:
-        max_pixel_value: 1 if grayscale, 3 if rgb
+        dynamic_range: 1 if grayscale, 3 if rgb
         reduction: Reduction applied over the batch: none (not supported by Trainer) | mean | sum
     """
 
-    def __init__(self, max_pixel_value: float = 255., reduction=None, denormalize_fn=None):
+    def __init__(self, dynamic_range: float = 255., reduction=None, denormalize_fn=None):
         super(PSNR, self).__init__(reduction=reduction)
         self.denormalize_fn = denormalize_fn
-        self.max_pixel_value = max_pixel_value
+        self.dynamic_range = dynamic_range
         self.eps = 1e-8
 
     def compute_values_per_batch(self, *args) -> torch.Tensor:
@@ -30,10 +30,8 @@ class PSNR(Metric):
             raise RuntimeError(
                 f"Sizes are mismatching: (predictions) {prediction.size()} != (target) {target.size()}")
 
-        prediction = prediction / self.max_pixel_value if not self.denormalize_fn else self.denormalize_fn(
-            prediction) / self.max_pixel_value
-        target = target / self.max_pixel_value if not self.denormalize_fn else self.denormalize_fn(
-            target) / self.max_pixel_value
+        prediction = prediction / self.dynamic_range
+        target = target / self.dynamic_range
 
         rank = len(prediction.size())
 
@@ -41,13 +39,8 @@ class PSNR(Metric):
         width_dim = rank - 1
         height_dim = width_dim - 1
         channel_dim = height_dim - 1
-        batch_dim = channel_dim - 1
 
         mse = torch.mean((prediction - target) ** 2, dim=[channel_dim, height_dim, width_dim])
-        mse = mse + self.eps
-        # if mse is close to 0 returns 100 otherwise returns psnr
-        psnr = torch.where(torch.isclose(mse, torch.zeros_like(mse)),
-                           100 * torch.ones_like(mse),
-                           - 10 * torch.log10(mse))
+        psnr = - 10 * torch.log10(mse + self.eps)
 
         return psnr

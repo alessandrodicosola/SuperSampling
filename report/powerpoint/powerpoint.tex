@@ -368,7 +368,7 @@
     \only<4-5>{
         \framesubtitle{Training}
     }
-    \only<6-8>{
+    \only<6-9>{
         \framesubtitle{Testing}
     }
 
@@ -452,14 +452,26 @@
             \caption{Validation images at 500 epoch.}\label{project:training}
         \end{figure}
     }
-    
     \only<6>{
+        \begin{tabular}{l|cc}
+            Dataset & PSNR & SSIM \\
+            \hline
+            BSDS100 & 24.923 & 0.73424 \\
+            Manga109 & 23.252 & 0.81887 \\
+            Set14 & 24.033 & 0.73389 \\
+            Set5 & 26.613 & 0.81929\\
+            Urban100 & 21.734 & 0.71546 \\
+            historical\footnotemark & 20.717 & 0.66789
+        \end{tabular}
+    }
+
+    \only<7>{
         \drawtestimages{Set5}{project-set-5}{0.4} %OK
     }
-    \only<7>{
+    \only<8>{
         \drawtestimages{Urban100}{project-urban-100}{0.09} %OK
     }
-    \only<8>{
+    \only<9>{
         \drawtestimages{Manga109}{project-manga-109}{0.1} %OK
     }
     

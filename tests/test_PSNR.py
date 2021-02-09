@@ -22,7 +22,7 @@ class TestPSNR(PyTorchTest):
         loss = MSELoss().to(device)
         model = NetworkOneInput(input_size, 32).to(device)
         adam = Adam(model.parameters(), 1e-3, betas=(0.99, 0.999), eps=1e-8)
-        self.trainer = Trainer("test", model, adam, loss, metric=PSNR(max_pixel_value=1., reduction='mean'),
+        self.trainer = Trainer("test", model, adam, loss, metric=PSNR(dynamic_range=1., reduction='mean'),
                                device=device)
 
     def after(self):
@@ -38,14 +38,14 @@ class TestPSNR(PyTorchTest):
 
     def test_same(self):
         i1 = torch.rand(32, 3, 48, 48)
-        psnr = PSNR(max_pixel_value=1., reduction='mean')(i1, i1)
+        psnr = PSNR(dynamic_range=1., reduction='mean')(i1, i1)
         self.assertAlmostEqual(psnr, 100)
 
 
     def test_raise_error(self):
         i1 = torch.rand(3, 5, 5)
         i2 = torch.rand(3, 5, 12)
-        psnr = PSNR(max_pixel_value=1., reduction='mean')
+        psnr = PSNR(dynamic_range=1., reduction='mean')
         self.assertRaises(RuntimeError, psnr, i1, i2)
 
 
