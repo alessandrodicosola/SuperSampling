@@ -82,11 +82,13 @@ class SSIM(Metric):
 
     def __init__(self, kernel_size_sigma: Tuple[int, float] = (11, 1.5), dynamic_range: float = 255., image_channels=3,
                  K1_K2: Tuple[float, float] = (0.01, 0.03), alpha_beta_gamma: Tuple[float, float, float] = (1, 1, 1),
-                 reduction=None):
+                 reduction=None, denormalize_fn=None):
         super(SSIM, self).__init__(reduction=reduction)
         if not reduction:
             raise RuntimeError(
                 "Trainer supports only metrics that returns float: .items() at the end. Use reduction={mean, sum}")
+        self.denormalie_fn = denormalize_fn
+
         self.dynamic_range = dynamic_range
 
         self.reduction = reduction
@@ -121,6 +123,10 @@ class SSIM(Metric):
 
         """
         prediction, target = args
+        if self.denormalie_fn:
+            prediction = self.denormalie_fn(prediction)
+            target = self.denormalie_fn(target)
+
         prediction = prediction / self.dynamic_range
         target = target / self.dynamic_range
 

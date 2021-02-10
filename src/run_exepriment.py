@@ -212,7 +212,7 @@ def run(experiment: str,
 
     # Define the metrics
     METRICS = [PSNR(dynamic_range=1.0, reduction='mean', denormalize_fn=ASDNDataset.denormalize_fn()),
-               SSIM(dynamic_range=1.0, reduction='mean')]
+               SSIM(dynamic_range=1.0, reduction='mean', denormalize_fn=ASDNDataset.denormalize_fn())]
 
     # Define the trainer
     TRAINER = Trainer(experiment=experiment, model=ASDN_, optimizer=ADAM, criterion=L1, metric=METRICS,
