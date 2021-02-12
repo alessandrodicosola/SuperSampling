@@ -11,7 +11,7 @@ class StdOutCallback(Callback):
 
     def end_epoch(self, wrapper: CallbackWrapper):
         # for avoiding circular dependency error #
-        from base.Trainer import Trainer
+        from base.trainer.Trainer import Trainer
 
         self.end.record()
 
@@ -35,7 +35,7 @@ class StdOutCallback(Callback):
 
     def end_batch(self, wrapper: CallbackWrapper):
         if self.print_batch:
-            from base.Trainer import Trainer
+            from base.trainer.Trainer import Trainer
 
             train_state = wrapper.train_state
             val_state = wrapper.val_state

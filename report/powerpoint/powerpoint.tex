@@ -23,25 +23,33 @@
 % 1: true label: e.g. Urban100
 % 2: root image : project-urban-100
 % 3: scale
+% 4: comment (e.g. denorm)
 \begin{columns}
     
-    \begin{column}{0.5\paperwidth}
+    \begin{column}{0.33\paperwidth}
         \begin{figure}
             \centering
-            \includegraphics[scale=#3]{#2-input}
+            \includegraphics[scale=#3]{#2-input-denorm}
             \caption{Input}
-            \includegraphics[scale=#3]{#2-bicubic}
+            \includegraphics[scale=#3]{#2-bicubic-denorm}
             \caption{Bicubic.}
         \end{figure}
     \end{column}
-    \begin{column}{0.5\paperwidth}
+    \begin{column}{0.33\paperwidth}
         \begin{figure}
                 \centering
-                \includegraphics[scale=#3]{#2-gt}
+                \includegraphics[scale=#3]{#2-gt-denorm}
                 \caption{Ground truth.}
-                \includegraphics[scale=#3]{#2-output}
-                \caption{Output.}
         \end{figure}
+    \end{column}    
+    \begin{column}{0.33\paperwidth}
+        \begin{figure}
+                \centering
+                \includegraphics[scale=#3]{#2-output-denorm}
+                \caption{Output base model.}
+                \includegraphics[scale=#3]{#2-output-average}
+                \caption{Output ensemble model.}
+                    \end{figure}
     \end{column}    
 \end{columns}
 }
@@ -453,16 +461,18 @@
         \end{figure}
     }
     \only<6>{
-        \begin{tabular}{l|cc}
-            Dataset & PSNR & SSIM \\
-            \hline
-            BSDS100 & 24.923 & 0.73424 \\
-            Manga109 & 23.252 & 0.81887 \\
-            Set14 & 24.033 & 0.73389 \\
-            Set5 & 26.613 & 0.81929\\
-            Urban100 & 21.734 & 0.71546 \\
-            historical\footnotemark & 20.717 & 0.66789
-        \end{tabular}
+        \begin{table}
+            \begin{tabular}{lllll}
+            Dataset    & \multicolumn{2}{l}{Base} & \multicolumn{2}{l}{Ensemble} \\
+                       & PSNR       & SSIM        & PSNR         & SSIM          \\
+            BSDS100    & 24.924     & 0.73514     & 24.777       & 0.73414       \\
+            Manga109   & 23.306     & 0.82064     & 22.879       & 0.81448       \\
+            Set14      & 24.109     & 0.74444     & 23.811       & 0.73910       \\
+            Set5       & 26.984     & 0.83924     & 26.699       & 0.83623       \\
+            Urban100   & 21.776     & 0.71635     & 21.553       & 0.71324       \\
+            historical & 20.675     & 0.66890     & 20.533       & 0.66516      
+            \end{tabular}
+        \end{table}
     }
 
     \only<7>{
@@ -474,7 +484,6 @@
     \only<9>{
         \drawtestimages{Manga109}{project-manga-109}{0.1} %OK
     }
-    
 
 \end{frame}
 

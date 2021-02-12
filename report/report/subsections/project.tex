@@ -7,23 +7,28 @@
     \begin{figure}
         \begin{subfigure}{0.5\textwidth}
             \centering
-            \includegraphics[scale=#3]{#2-input}
+            \includegraphics[scale=#3]{#2-input-denorm}
             \caption{Input}
         \end{subfigure}
         \begin{subfigure}{0.5\textwidth}
             \centering
-            \includegraphics[scale=#3]{#2-gt}
+            \includegraphics[scale=#3]{#2-gt-denorm}
             \caption{Ground truth.}
         \end{subfigure}
-        \begin{subfigure}{0.5\textwidth}
+        \begin{subfigure}{0.33\textwidth}
             \centering
-            \includegraphics[scale=#3]{#2-bicubic}
+            \includegraphics[scale=#3]{#2-bicubic-denorm}
             \caption{Bicubic.}
         \end{subfigure}
-        \begin{subfigure}{0.5\textwidth}
+        \begin{subfigure}{0.33\textwidth}
             \centering
-            \includegraphics[scale=#3]{#2-output}
-            \caption{Output.}
+            \includegraphics[scale=#3]{#2-output-denorm}
+            \caption{Output base model.}
+        \end{subfigure}
+        \begin{subfigure}{0.33\textwidth}
+            \centering
+            \includegraphics[scale=#3]{#2-output-average}
+            \caption{Output ensemble model.}
         \end{subfigure}
         \caption{Base model applied to #1.}\label{project:test-#1}
     \end{figure}
@@ -181,24 +186,35 @@ In both case the loss is steady to \textasciitilde 0.6 and no real difference be
     \caption{Validation images at 500-th epoch.}\label{project:training}
 \end{figure}
 
+\subsubsection{Ensemble}
+An ensemble was created averaging parameters saved during the training reducing lr with the policy defined in \textit{Snapshot ensembling}\cite{snapshotesembling}.
+The lr, loss and val loss of each model at the end of the cycle are:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth, keepaspectratio]{project-ensemble-lr-loss-valloss.png}
+    \caption{Learning rate, training loss and validation loss.}
+\end{figure}
+
 \subsubsection{Testing}
+The following are the results
 
-The following are the results of the base model during testing with:
 
+\begin{table}[H]
+    \begin{tabular}{lllll}
+    Dataset    & \multicolumn{2}{l}{Base} & \multicolumn{2}{l}{Ensemble} \\
+               & PSNR       & SSIM        & PSNR         & SSIM          \\
+    BSDS100    & 24.924     & 0.73514     & 24.777       & 0.73414       \\
+    Manga109   & 23.306     & 0.82064     & 22.879       & 0.81448       \\
+    Set14      & 24.109     & 0.74444     & 23.811       & 0.73910       \\
+    Set5       & 26.984     & 0.83924     & 26.699       & 0.83623       \\
+    Urban100   & 21.776     & 0.71635     & 21.553       & 0.71324       \\
+    historical\footnotemark & 20.675     & 0.66890     & 20.533       & 0.66516      
+    \end{tabular}
+    \end{table}
 \footnotetext{Ground truth images were already LR images}
-\begin{tabular}{l|cc}
-    Dataset & PSNR & SSIM \\
-    \hline
-    BSDS100 & 24.923 & 0.73424 \\
-    Manga109 & 23.252 & 0.81887 \\
-    Set14 & 24.033 & 0.73389 \\
-    Set5 & 26.613 & 0.81929\\
-    Urban100 & 21.734 & 0.71546 \\
-    historical\footnotemark & 20.717 & 0.66789
-\end{tabular}
 
 The only comparison is done with bicubic interpolation. 
-The network is able to reconstruct sharp edges but unable to restore all the details from the original image [\Cref{project:test-Urban100},\Cref{project:test-Manga109},\Cref{project:test-Set5},\Cref{project:test-Set14},\Cref{project:test-BSDS100},\Cref{project:test-historical}]
+The network is able to reconstruct sharp edges but unable to restore all the details from the original image [\Cref{project:test-Urban100},\Cref{project:test-Manga109},\Cref{project:test-Set5},\Cref{project:test-Set14},\Cref{project:test-BSDS100},\Cref{project:test-historical}] although images are a bit less blurred using the ensemble \footnote{In order to see the difference is necessary to jump faster from one image to the other}.
 
 \drawtestimages{Urban100}{project-urban-100}{0.168} %OK
 \drawtestimages{Manga109}{project-manga-109}{0.20} %OK

@@ -1,17 +1,13 @@
 import operator
 import unittest
 from functools import partial
-from unittest import TestCase
 import torch
-from torch import Tensor
-from torch.nn import MSELoss, Module
-from torch.optim import Adam, Optimizer
-from torch.utils.data import DataLoader, Dataset
+from torch.nn import MSELoss
+from torch.optim import Adam
+from torch.utils.data import DataLoader
 
-from base import BaseModule
 from base.callbacks.EarlyStoppingCallback import EarlyStoppingCallback
-from base.Trainer import Trainer
-from base.hints import Criterion
+from base.trainer.Trainer import Trainer
 
 from datasets.ASDNDataset import ASDNDataset, create_batch_for_training
 from models.ASDN import ASDN

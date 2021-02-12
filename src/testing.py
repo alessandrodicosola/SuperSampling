@@ -19,11 +19,12 @@ from models.LaplacianFrequencyRepresentation import LaplacianFrequencyRepresenta
 import torchvision.transforms.functional as F
 from torchvision.utils import make_grid
 
+from run_exepriment import fix_randomness
 from utility import get_models_dir, get_datasets_dir
 
 
 @torch.no_grad()
-def testing(dataset: TestDataset, device, model_state_dict_path: Path, **model_kwargs):
+def testing(comment: str, dataset: TestDataset, device, model_state_dict_path: Path, **model_kwargs):
     """Test the model (loaded) on the dataset specified
 
     Args
@@ -50,7 +51,7 @@ def testing(dataset: TestDataset, device, model_state_dict_path: Path, **model_k
     denorm_fn = ASDNDataset.denormalize_fn()
 
     # Create test logger
-    test_folder = f"TESTING_{dataset.name}_denorm"
+    test_folder = f"__TESTING_{dataset.name}_{comment}"
     log_dir = get_models_dir() / model.__class__.__name__ / test_folder
     writer = SummaryWriter(log_dir=str(log_dir))
 
@@ -114,28 +115,39 @@ def testing(dataset: TestDataset, device, model_state_dict_path: Path, **model_k
 
 
 if __name__ == "__main__":
-    # TODO Implement using argparse
+    fix_randomness(2020)
+
     model_kwargs = {
         "n_dab": 8,
         "n_intra_layers": 4,
         "out_channels_dab": 32,
         "intra_layer_output_features": 32
     }
-    model_state_dict_path = Path(
-        R"D:\University\PROJECTS\MLCV\models\ASDN\TRAINING_AUGMENTATION_E500_B8_S1lr0.001_lr_schedulerReduceLROnPlateau_mode='min'_factor=0.5_patience=10_verbose=True_n_dab8_n_intra_layers4_out_channels_dab32_intra_layer_output_features32\checkpoints\ASDN__last.pytorch"
-    )
 
+    # Init device
     if not torch.cuda.is_available():
         raise RuntimeError("GPU not available. Can't run the testing.")
-
     device = torch.device("cuda:0")
 
-    # folder name
+    # Init datasets
     dataset_names = ["Set5", "Set14", "historical", "Urban100", "Manga109", "BSDS100"]
 
-    for dataset_name in dataset_names:
-        dataset_path = get_datasets_dir() / "Test" / dataset_name
-        dataset = TestDataset([3.5, 4], dataset_path)
-        dataset.name = dataset_name
+    aug_train_model = [
+        R"D:\University\PROJECTS\MLCV\models\ASDN\TRAINING_AUGMENTATION_E500_B8_S1lr0.001_lr_schedulerReduceLROnPlateau_mode='min'_factor=0.5_patience=10_verbose=True_n_dab8_n_intra_layers4_out_channels_dab32_intra_layer_output_features32\checkpoints\ASDN__last.pytorch"]
+    aug_train_model = [Path(path) for path in aug_train_model]
+    ensemble_folder = get_models_dir() / "ASDN" / "ensemble" / "snapshots"
+    ensemble_models = [path.resolve() for path in ensemble_folder.glob("*.pytorch")]
+    models_to_test = aug_train_model + ensemble_models
+    #models_to_test = ensemble_models
 
-        testing(dataset, device, model_state_dict_path, **model_kwargs)
+    comments = ["denorm", "average"]
+
+    for model_state_dict_path, comment in zip(models_to_test, comments):
+        print(model_state_dict_path, comment)
+
+        for dataset_name in dataset_names:
+            dataset_path = get_datasets_dir() / "Test" / dataset_name
+            dataset = TestDataset([3.5, 4], dataset_path)
+            dataset.name = dataset_name
+
+            testing(comment, dataset, device, model_state_dict_path, **model_kwargs)

@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from base.callbacks.TensorboardCallback import TensorboardCallback
 from base.transforms.RandomCompose import RandomCompose
 from base.transforms.Rotate import Rotate
-from base.Trainer import Trainer
+from base.trainer.Trainer import Trainer
 from base.metrics.PSNR import PSNR
 from base.metrics.SSIM import SSIM
 from datasets.ASDNDataset import ASDNDataset, create_batch_for_training
@@ -333,8 +333,8 @@ def train_with_augmentation(epochs: int, **model_kwargs):
     training_kwargs = dict(save_checkpoints=1, epochs=epochs, batch_size=8, lr=0.001,
                            lr_scheduler=partial(ReduceLROnPlateau, mode="min", factor=0.5, patience=10, verbose=True),
                            augmentation=RandomCompose([
-                               torchvision.transforms.RandomHorizontalFlip(),
-                               torchvision.transforms.RandomVerticalFlip(),
+                               torchvision.transforms.RandomHorizontalFlip(p=1.0),
+                               torchvision.transforms.RandomVerticalFlip(p=1.0),
                                Rotate([-90, 90], expand=True)
                            ]),
                            )
@@ -342,26 +342,6 @@ def train_with_augmentation(epochs: int, **model_kwargs):
     n_workers = 2 if model_kwargs.get("out_channels_dab") >= 32 else 4
     other_kwargs = dict(n_workers=n_workers, pin_memory=True, save=True)
     run("TRAINING_AUGMENTATION", other_kwargs=other_kwargs, training_kwargs=training_kwargs, model_kwargs=model_kwargs)
-
-
-def test_balbalbablab(epochs: int, **model_kwargs):
-    fix_randomness(2020)
-
-    n_workers = 2 if model_kwargs.get("out_channels_dab") >= 32 else 4
-
-    training_kwargs = dict(save_checkpoints=1, epochs=epochs, batch_size=8, lr=0.001,
-                           lr_scheduler=partial(ReduceLROnPlateau, mode="min", factor=0.5, patience=10, verbose=True),
-                           augmentation=RandomCompose([
-                               torchvision.transforms.RandomHorizontalFlip(),
-                               torchvision.transforms.RandomVerticalFlip(),
-                               Rotate([-90, 90], expand=True)
-                           ]),
-                           )
-
-    n_workers = 2 if model_kwargs.get("out_channels_dab") >= 32 else 4
-    other_kwargs = dict(n_workers=n_workers, pin_memory=True, save=True)
-    run("BALBALBLABLABLALBL", other_kwargs=other_kwargs, training_kwargs=training_kwargs, model_kwargs=model_kwargs)
-
 
 if __name__ == "__main__":
     # default params for the project
@@ -383,5 +363,4 @@ if __name__ == "__main__":
 
     # overfitting(epochs=200, **model_kwargs)
     # train(500, **model_kwargs)
-
-    test_balbalbablab(1, **model_kwargs)
+    pass

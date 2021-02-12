@@ -29,9 +29,9 @@ class PSNR(Metric):
         if prediction.size() != target.size():
             raise RuntimeError(
                 f"Sizes are mismatching: (predictions) {prediction.size()} != (target) {target.size()}")
-        if self.denormalie_fn:
-            prediction = self.denormalie_fn(prediction)
-            target = self.denormalie_fn(target)
+        if self.denormalize_fn:
+            prediction = self.denormalize_fn(prediction)
+            target = self.denormalize_fn(target)
 
         prediction = prediction / self.dynamic_range
         target = target / self.dynamic_range

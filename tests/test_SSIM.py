@@ -1,13 +1,12 @@
 import unittest
 import random
-from unittest import TestCase
 
 import torch
 from torch.nn import MSELoss
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
-from base.Trainer import Trainer
+from base.trainer.Trainer import Trainer
 from base.metrics.SSIM import gaussian_filter, SSIM
 from base.transforms.NormalizeInverse import NormalizeInverse
 from tests.pytorch_test import PyTorchTest

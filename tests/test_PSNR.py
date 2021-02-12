@@ -1,13 +1,11 @@
 import unittest
-from unittest import TestCase
 
 import torch
 from torch.nn import MSELoss
 from torch.optim import Adam
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
-from base import BaseModule
-from base.Trainer import Trainer
+from base.trainer.Trainer import Trainer
 from base.metrics.PSNR import PSNR
 from tests.pytorch_test import PyTorchTest
 from tests.util_for_testing import RandomDataset, NetworkOneInput

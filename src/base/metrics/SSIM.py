@@ -87,7 +87,7 @@ class SSIM(Metric):
         if not reduction:
             raise RuntimeError(
                 "Trainer supports only metrics that returns float: .items() at the end. Use reduction={mean, sum}")
-        self.denormalie_fn = denormalize_fn
+        self.denormalize_fn = denormalize_fn
 
         self.dynamic_range = dynamic_range
 
@@ -123,9 +123,9 @@ class SSIM(Metric):
 
         """
         prediction, target = args
-        if self.denormalie_fn:
-            prediction = self.denormalie_fn(prediction)
-            target = self.denormalie_fn(target)
+        if self.denormalize_fn:
+            prediction = self.denormalize_fn(prediction)
+            target = self.denormalize_fn(target)
 
         prediction = prediction / self.dynamic_range
         target = target / self.dynamic_range
