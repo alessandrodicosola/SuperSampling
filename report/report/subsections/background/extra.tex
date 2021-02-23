@@ -78,7 +78,7 @@ $
 \end{cases}
 $ where $x_l$ and $x_{l+1}$ are, respectively, the input and the output of the \textit{l-th} residual unit, $y_l$ is the output of the sum between \textit{h}, identity, and \textit{F} the residual, and f is the \textit{ReLU}.
 
-Using an identity mapping in the output then $x_{l+1} = y_l = x_l + F(x_l,W_l)$ which recursively lead to $X_L = x_l + \sum_i=1^{L-1} F(x_i,w_i)$: any deeper unit $L$ is the sum of the input of a shallow unit $l$ and the residual of the unit between $l$ and $L$.
+Using an identity mapping in the output then $x_{l+1} = y_l = x_l + F(x_l,W_l)$ which recursively lead to $X_L = x_l + \sum_{i=1}^{L-1} F(x_i,w_i)$: any deeper unit $L$ is the sum of the input of a shallow unit $l$ and the residual of the unit between $l$ and $L$.
 
 An intuition of why this is used in \Cref{lapsrn} and DRRN\cite{DRRN} can be seen in this results: since the skip connection allow to flow the real input (the LR image) than the network is able to take apart low frequency information better.
 
